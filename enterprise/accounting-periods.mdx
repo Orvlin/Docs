@@ -1,43 +1,42 @@
 ---
 title: 'Accounting periods'
-description: 'Lock closed months so billing data for them can't change'
+description: 'Mark closed months in your close process, and see how period status is recorded'
 ---
 
-When your finance team closes a month, lock its accounting period. Locked periods protect the figures your books depend on, so a late usage event or a re-run can't quietly change a closed month.
+When your finance team closes a month, record that close on the accounting period. The period status is the sign-off point for your close process.
 
-## Lock a period
+## Close a period
 
 ```bash
 curl -s -X POST "$ORVLIN_API/v1/accounting/periods/9/2026/lock" \
   -H "Authorization: Bearer $ADMIN_SESSION_TOKEN"
 ```
 
-The path takes the month as `:month` (1 to 12) and the year as `:year`. The example locks September 2026.
+The path takes the month as `:month` (1 to 12) and the year as `:year`. The example closes September 2026. The response is the updated period, with `status: "closed"` and `closed_at`.
 
-## Unlock a period
+## Reopen a period
 
-Unlocking is for corrections. Record the reason in your own change log, because the unlock is also audited.
+Reopen a period only for corrections, and record the reason in your own change log.
 
 ```bash
 curl -s -X POST "$ORVLIN_API/v1/accounting/periods/9/2026/unlock" \
   -H "Authorization: Bearer $ADMIN_SESSION_TOKEN"
 ```
 
-## What locking does
+The response shows `status: "open"`.
 
-A locked period is closed in the accounting ledger, so changes that would alter its figures are blocked. Lock and unlock actions are recorded in the [audit log](/enterprise/audit-logs).
+## What the status means today
 
-<Note>
-Before your first close, test the lock in sandbox with a test clock, and confirm which changes it blocks in your workspace.
-</Note>
+- The period's status is recorded as `closed` or `open`. Your reporting and close checklists should read it before finalising figures.
+- The status does not yet stop changes to a closed period through the API. Check the status before you make corrections to a period.
+
+<Warning>
+Until enforcement is in place, the status is a record of your close, not a lock. Treat changes to closed periods as exceptions, and log them.
+</Warning>
 
 ## Recommended close process
 
 1. Confirm all usage for the month has been ingested. Late events are the most common cause of surprises.
 2. Review the revenue summary: `GET /v1/revenue/summary`.
-3. Lock the period.
+3. Close the period.
 4. Export the audit log for the period, and store it with your close file.
-
-<Tip>
-Lock the period only after your revenue summary matches your expectations. Unlocking is possible but leaves a trail.
-</Tip>

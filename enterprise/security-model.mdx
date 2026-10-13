@@ -38,7 +38,7 @@ Rotate keys on a schedule and after any staff change. The [rotation steps](/api-
 
 - Integration credentials for tax, CRM, accounting, and warehouse providers are stored encrypted with AES-256-GCM.
 - Client secrets for SSO connections are stored encrypted.
-- Orvlin never returns a stored secret after it has been saved.
+- Save webhook secrets in your own secret manager when you create the endpoint. If a secret leaks, rotate it by recreating the endpoint and updating your receiver.
 
 ## Webhook signatures
 

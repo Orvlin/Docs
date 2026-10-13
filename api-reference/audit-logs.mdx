@@ -20,7 +20,7 @@ Requires a signed-in user session with access to audit logs.
 | `resourceId` | string | | One specific resource ID. |
 | `since` | string | | ISO 8601 start, inclusive. |
 | `until` | string | | ISO 8601 end, inclusive. |
-| `limit` | integer | `50` | Entries per page. Maximum `1000`. |
+| `limit` | integer | `50` | Entries per page. Maximum `1000` for JSON, `10000` for CSV. |
 | `offset` | integer | `0` | Entries to skip. |
 | `format` | string | `json` | Set to `csv` to download a CSV file. |
 
@@ -48,4 +48,4 @@ curl -s "$ORVLIN_API/v1/audit?since=2026-10-01T00:00:00Z&format=csv" \
   -H "Authorization: Bearer $ADMIN_SESSION_TOKEN" -o audit.csv
 ```
 
-A CSV export returns up to the `limit` you set, or the maximum of `1000` when you don't set one. Page with `offset` for larger exports.
+A CSV export returns up to `limit` entries, with a maximum of `10000` per request. Page with `offset` for larger exports.

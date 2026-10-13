@@ -3,41 +3,55 @@ title: 'Data privacy'
 description: 'Export or erase a customer's data to meet access and deletion requests'
 ---
 
-Customers can ask what data you hold about them, and ask you to delete it. Orvlin gives you two operations for those requests.
+Customers can ask what data you hold about them, and ask you to delete it. Orvlin provides an export for access requests, an erasure for deletion requests, and retention settings for data you keep.
+
+## Who can do this
+
+Erasure and retention changes destroy data, so only **workspace admins and API keys** can run them. Exports are read-only, and are limited to people and keys with access to the customer's data. Every erasure and retention change is recorded in the [audit log](/enterprise/audit-logs).
 
 ## Export a customer's data
 
 ```bash
-curl -s "$ORVLIN_API/v1/customers/cust_acme/data-export" \
-  -H "Authorization: Bearer $ADMIN_SESSION_TOKEN" -o cust_acme-export.json
-```
-
-The export contains the data Orvlin stores about that customer. Save the file to your secure storage, and don't email it unencrypted.
-
-## Erase a customer's personal data
-
-```bash
-curl -s -X POST "$ORVLIN_API/v1/customers/cust_acme/erase" \
+curl -s -OJ "$ORVLIN_API/v1/customers/cust_acme/data-export" \
   -H "Authorization: Bearer $ADMIN_SESSION_TOKEN"
 ```
 
-Erasure removes the customer's personal information. Keep the following in mind:
+The response is a JSON file (`customer-cust_acme-data-export.json`) sent as an attachment. Each export carries an `x-data-subject-request` header with the request ID, so you can link the file to your ticket.
 
-- **Export first.** Treat erasure as permanent. Keep an export if you need one for your own records.
-- **Check retention duties.** Some invoice and tax records may have to be kept by law. Confirm with your legal team before erasing customers with financial history.
-- **The action is audited.** The erasure is recorded in the [audit log](/enterprise/audit-logs).
+Store the file in encrypted storage, and don't send it by unencrypted email.
+
+## Erase a customer
+
+Erasure requires you to type the customer ID back in the request, so you can't erase the wrong customer by accident.
+
+```bash
+curl -s -X POST "$ORVLIN_API/v1/customers/cust_acme/erase" \
+  -H "Authorization: Bearer $ADMIN_SESSION_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "confirm": "cust_acme",
+    "usageEvents": "retain"
+  }'
+```
+
+| Field | Required | Values | Description |
+|---|---|---|---|
+| `confirm` | Yes | The customer ID | Must match the ID in the URL. Otherwise the request returns `400`. |
+| `usageEvents` | No | `retain` (default), `delete` | Whether the customer's usage events are kept or removed. |
 
 <Warning>
-Confirm the request with the customer and your legal team before erasing, especially for customers with open invoices.
+Erasure cannot be undone. Export the customer first if you need a copy, and confirm the request with your legal team, especially for customers with open invoices.
 </Warning>
+
+Check your own retention duties before you erase. Some invoice and tax records may need to be kept by law.
 
 ## Retention
 
-Your retention settings control how long Orvlin keeps data that isn't tied to an erasure request. Read and set them with the privacy endpoints at `/v1/privacy/retention`.
+Retention controls how long Orvlin keeps usage events. Read the current setting with `GET /v1/privacy/retention`, and change it with `PUT /v1/privacy/retention` and a `usageEventRetentionDays` value (a whole number of days, or `null` to clear it). Only workspace admins and API keys can change retention, and each change is recorded in the audit log.
 
 ## Responding to a request
 
 1. Verify the requester's identity in your own system.
 2. Export the data, and send it through your secure channel.
-3. If they asked for deletion, erase the customer after confirming.
-4. Record the request and your response in your compliance tracker.
+3. For a deletion request, confirm the request, export if needed, then erase with `"confirm"` set to the customer ID.
+4. Keep the request ID and your response in your compliance records.

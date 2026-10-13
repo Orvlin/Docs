@@ -67,7 +67,7 @@ graph LR
 - Approve: `POST /v1/approvals/:id/approve` with an optional `note`.
 - Reject: `POST /v1/approvals/:id/reject` with an optional `note`.
 
-Every decision is recorded in the [audit log](/enterprise/audit-logs), with the approver and the note. Orvlin also sends webhooks for approval events, so your team can route requests to Slack or a ticketing system.
+Decisions and policy changes are recorded in the [audit log](/enterprise/audit-logs). Orvlin sends webhooks when a request is created (`approval.requested`) and when it's decided (`approval.decided`), so your team can route requests to Slack or a ticketing system. See [Webhooks](/api-reference/webhooks).
 
 <Tip>
 Start with `thresholdAmount` set to a value that catches only the risky cases. Review the queue for a week before you tighten it.

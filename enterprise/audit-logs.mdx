@@ -31,14 +31,14 @@ Filter by:
 | `resourceType` | The kind of resource, such as `invoice`. |
 | `resourceId` | One specific resource. |
 | `since`, `until` | ISO 8601 bounds, inclusive. |
-| `limit`, `offset` | Paging. Default 50 per page, maximum 1000. |
+| `limit`, `offset` | Paging. Default 50 per page, maximum 1000 for JSON. |
 
 ## Export
 
-Add `format=csv` to download the matching entries as a CSV file for your records or SIEM:
+Add `format=csv` to download the matching entries as a CSV file for your records or SIEM. A CSV export can contain up to 10,000 entries per request, so page with `offset` for larger exports:
 
 ```bash
-curl -s "$ORVLIN_API/v1/audit?since=2026-10-01T00:00:00Z&format=csv" \
+curl -s "$ORVLIN_API/v1/audit?since=2026-10-01T00:00:00Z&format=csv&limit=10000" \
   -H "Authorization: Bearer $ADMIN_SESSION_TOKEN" -o audit-2026-10.csv
 ```
 

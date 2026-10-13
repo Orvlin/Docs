@@ -28,7 +28,8 @@
         "group": "Get started",
         "pages": [
           "introduction",
-          "quickstart"
+          "quickstart",
+          "ai-agents"
         ]
       },
       {
@@ -54,6 +55,7 @@
       {
         "group": "Guides",
         "pages": [
+          "guides/integrate-your-app",
           "guides/usage-metering",
           "guides/entitlements",
           "guides/prepaid-credits",
@@ -106,6 +108,16 @@
           "api-reference/audit-logs"
         ]
       }
+    ]
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "cursor",
+      "vscode"
     ]
   }
 }

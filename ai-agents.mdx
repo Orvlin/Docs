@@ -1,0 +1,84 @@
+---
+title: 'For AI assistants and agents'
+description: 'Use these docs with ChatGPT, Claude, Cursor, or your own coding agent, and the facts they need to get Orvlin right'
+---
+
+These docs are written so that people and AI tools can both use them. This page explains how to give them to an assistant, and lists the rules an assistant most often gets wrong.
+
+## Give the docs to your assistant
+
+| Format | URL | Use it for |
+|---|---|---|
+| Index | [/llms.txt](/llms.txt) | A list of every page with a one-line summary. Good for choosing pages. |
+| Full text | [/llms-full.txt](/llms-full.txt) | Every page in one file. Good for a large context window. |
+| One page | Add `.md` to any page URL, such as [/quickstart.md](/quickstart.md) | A single page as Markdown, for a focused question. |
+
+Every page also has **Copy** and **Open in** actions at the top, which send the page to ChatGPT, Claude, or Cursor.
+
+<Tip>
+For integration work, give the assistant [/guides/integrate-your-app.md](/guides/integrate-your-app.md) and the [API reference overview](/api-reference/overview.md). That covers most questions.
+</Tip>
+
+## Facts to get right
+
+Assistants frequently get the points below wrong. Check generated code against them.
+
+### Authentication
+
+- Server requests send `Authorization: Bearer <API key>`. Keys start with `orv_`.
+- The React SDK and browser code use a **portal token** from `POST /v1/portal/sessions`. Never put an API key in browser code.
+- Creating or revoking API keys, and managing webhooks, requires a **signed-in user session**, not an API key.
+
+### Identifiers
+
+- Subscriptions take `planId`, the plan's ID. They don't take the plan name.
+- Customer IDs are yours, or generated as `cust_…`. Letters, digits, and `_ . : -` only, up to 128 characters.
+- Events, grants, and purchases accept `idempotencyKey`. Reusing a key for an event counts it once. Reusing a key for a grant or purchase returns the original record.
+
+### Usage
+
+- Send events with `POST /v1/events`. A single object, an array, or `{ "events": [...] }` are all accepted.
+- `eventName` must match the metric's events, or the usage isn't billed.
+- Track usage after the work succeeds. Check entitlements before the work starts.
+
+### Entitlements and credits
+
+- `check(customerId, featureId, { amount })` returns `hasAccess`, `remaining`, and `source`. `remaining` is `null` for no cap.
+- `checkCredits` (Node) and `check_credits` (Python) check a balance without spending it.
+- Credit grants and purchases use `POST /v1/customers/:id/wallets/:type/grants` and `/purchases`. Test clocks only work in sandbox.
+
+### Webhooks
+
+- Signature: HMAC-SHA256 over `X-Orvlin-Timestamp + "." + raw body`, using the endpoint secret that starts with `whsec_`.
+- Verify the raw body before parsing. Reject timestamps older than a few minutes.
+- Deliveries can repeat. Make handlers idempotent on the event `id`.
+- Endpoints must use HTTPS in production.
+
+### Errors
+
+| Status | Meaning |
+|---|---|
+| `400` | Invalid input. Don't retry unchanged. |
+| `401` | Key missing, invalid, or revoked. |
+| `403` | Key's role can't do this. |
+| `404` | Not found in this workspace. |
+| `429` | Rate limited. Retry with backoff. |
+| `500` / `503` | Retry with backoff and the same idempotency key. |
+
+### Environments
+
+- New workspaces are sandbox. Sandbox payments never reach a real processor.
+- Use separate API keys for sandbox and live. Never use a live key in tests.
+
+## Ask good questions
+
+Assistants answer better with the specifics. Include:
+
+1. The language and framework (for example, Next.js with the Node SDK, or FastAPI with the Python SDK).
+2. The billable action and how you charge for it.
+3. Whether the code runs on a server or in a browser.
+4. The exact error response you got, including the status code.
+
+## Confirm before relying on it
+
+Where a page says to confirm something with your account team, don't let an assistant state it as fact. Check it in your workspace first.

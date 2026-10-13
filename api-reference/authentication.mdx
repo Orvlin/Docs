@@ -1,0 +1,112 @@
+---
+title: 'Authentication'
+description: 'Authenticate API requests with API keys, and manage dashboard sessions'
+---
+
+Your application authenticates with an **API key**. Dashboard users sign in with a **session**. The two are separate: a key is for servers, and a session is for people.
+
+## API keys
+
+Send your key as a Bearer token on every request:
+
+```http
+Authorization: Bearer orv_xxxxxxxx_your_secret
+```
+
+The `x-api-key` header is also accepted:
+
+```http
+x-api-key: orv_xxxxxxxx_your_secret
+```
+
+Keys start with `orv_`. Create and revoke them with the [API keys endpoints](/api-reference/api-keys) or in the dashboard. A key's role decides what it can do. See [API keys](/api-reference/api-keys#roles).
+
+<Warning>
+Keep keys on your server. Never put them in browser code or mobile apps. For the browser, use a [customer portal](/api-reference/portal) session.
+</Warning>
+
+## Sessions
+
+Dashboard users sign in and receive an access token and a refresh token. Send the access token as a Bearer token too.
+
+### Register
+
+Creates a user and a workspace.
+
+```http
+POST /v1/auth/register
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `email` | string | Yes | The user's email address. Used to sign in. |
+| `password` | string | Yes | The password. At least 8 characters. |
+| `name` | string | Yes | The user's name. |
+| `companyName` | string | No | The workspace name. |
+
+### Log in
+
+```http
+POST /v1/auth/login
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `email` | string | Yes | The user's email address. |
+| `password` | string | Yes | The password. |
+
+Response:
+
+```json
+{
+  "user": {
+    "id": "usr_...",
+    "email": "you@example.com",
+    "name": "Ada",
+    "accountId": "acc_...",
+    "role": "admin",
+    "status": "active"
+  },
+  "tokens": {
+    "accessToken": "eyJhbG...",
+    "refreshToken": "786370...",
+    "expiresIn": 900
+  }
+}
+```
+
+The access token expires after `expiresIn` seconds (900 by default).
+
+### Refresh
+
+Exchange a refresh token for a new access token:
+
+```http
+POST /v1/auth/refresh
+```
+
+```json
+{ "refreshToken": "786370..." }
+```
+
+### Log out
+
+```http
+POST /v1/auth/logout
+```
+
+### Current user
+
+```http
+GET /v1/users/me
+```
+
+### Other sign-in methods
+
+- `POST /v1/auth/magic-link` with `{ "email": "…" }` sends a sign-in link. `POST /v1/auth/magic-link/verify` completes it.
+- `POST /v1/auth/forgot-password` with `{ "email": "…" }` sends a reset link. `POST /v1/auth/reset-password` sets the new password.
+- Single sign-on: `POST /v1/auth/sso/start` begins a sign-in, and `POST /v1/auth/sso/exchange` completes it. See [Single sign-on](/guides/sso).
+
+## Errors
+
+A missing or invalid credential returns `401`. A valid credential without the right role returns `403`. See [Errors](/api-reference/errors).

@@ -1,0 +1,81 @@
+---
+title: 'Prepaid credits'
+description: 'Sell credit packs, grant credits, and top up balances automatically'
+---
+
+Credits are a prepaid balance a customer spends as they use your product. Each credit type (for example `ai_images` or `tokens`) has a wallet per customer. Usage events draw the wallet down as they arrive.
+
+## Concepts
+
+- **Credit type**: what the credits are for, with a name, a unit label, and an `overage` rule. `block` stops usage when the balance reaches zero. `allow` lets usage continue and bills the overage.
+- **Grant**: credits given to a customer for free, as a promotion, or as part of a plan. Grants can expire.
+- **Purchase**: credits the customer buys. They are paid for by the card on file, or by an emailed invoice.
+- **Auto top-up**: buy more credits automatically when the balance falls to a threshold.
+
+## Grant credits
+
+```bash
+curl -X POST "$ORVLIN_API/v1/customers/cust_acme/wallets/ai_images/grants" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "amount": 500,
+    "source": "promotional",
+    "expiresAt": "2027-01-31T00:00:00Z",
+    "description": "Launch promotion",
+    "idempotencyKey": "promo_launch_acme"
+  }'
+```
+
+`source` is `grant`, `promotional`, or `purchase`. Reusing an `idempotencyKey` grants the credits once.
+
+## Sell a credit pack
+
+```bash
+curl -X POST "$ORVLIN_API/v1/customers/cust_acme/wallets/ai_images/purchases" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "credits": 1000,
+    "collection": "charge",
+    "idempotencyKey": "order_20261012_001"
+  }'
+```
+
+`collection` is `charge` (the card on file, the default) or `send_invoice` (the customer pays an emailed invoice). If you omit `unitPrice`, the credit type's price is used. A purchase starts as `pending_payment` and becomes `active` once paid.
+
+## Configure auto top-up
+
+```bash
+curl -X PUT "$ORVLIN_API/v1/customers/cust_acme/wallets/ai_images/auto-top-up" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "threshold": 100,
+    "credits": 1000,
+    "maxPerMonth": 5,
+    "enabled": true
+  }'
+```
+
+When the balance is at or below `threshold`, Orvlin buys `credits` against the card on file. `maxPerMonth` (default 5) caps the number of top-ups per calendar month.
+
+## Check a balance before work
+
+Use the SDK's `checkCredits` to confirm a customer can pay for an action:
+
+```ts
+const { allowed, balance } = await orvlin.checkCredits('cust_acme', {
+  eventName: 'image',
+  quantity: 1,
+});
+```
+
+Usage you then report with `track()` is drawn from the wallet as it arrives.
+
+## Read balances and history
+
+- `GET /v1/customers/:id/wallets`: balances for every credit type.
+- `GET /v1/customers/:id/wallets/:type/ledger`: every grant, purchase, and draw-down.
+
+See the [Credits API](/api-reference/credits) for every field.

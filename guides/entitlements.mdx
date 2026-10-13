@@ -1,0 +1,107 @@
+---
+title: 'Entitlements'
+description: 'Gate features and enforce limits in your application without slowing requests'
+---
+
+An entitlement tells your application whether a customer can use a feature right now, and how much of its allowance remains. Plans define the entitlements; Orvlin keeps the consumption up to date as usage arrives.
+
+## Check an entitlement
+
+Call the SDK before the work you want to gate:
+
+```ts
+const { hasAccess, remaining } = await orvlin.check('cust_acme', 'api_calls', { amount: 1 });
+
+if (!hasAccess) {
+  return reply.status(402).send({ error: 'Upgrade your plan to continue.' });
+}
+```
+
+The `amount` is how much the request will consume. `remaining` is `null` when the feature has no cap.
+
+## Read all entitlements
+
+```bash
+curl "$ORVLIN_API/v1/customers/cust_acme/entitlements" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY"
+```
+
+```json
+{
+  "customerId": "cust_acme",
+  "entitlements": [
+    {
+      "featureId": "seats",
+      "featureName": "Plan Seats",
+      "type": "numeric",
+      "hasAccess": true,
+      "allocated": 10,
+      "consumed": 3,
+      "remaining": 7,
+      "pricingModel": "license"
+    }
+  ]
+}
+```
+
+## How answers are cached
+
+Entitlement checks sit on your request path, so the SDKs answer from a local cache:
+
+| Situation | What the SDK returns | `source` |
+|---|---|---|
+| Answer is fresh (within `cacheTtlMs`, default 30 s) | The cached answer. | `cache` |
+| Answer is stale but Orvlin is slow or unreachable | The stale answer, while a refresh runs in the background. | `stale` |
+| Orvlin is unreachable and the customer has never been seen | The `onUnavailable` fallback. Default `deny`. | `fallback` |
+| Fresh fetch | The live answer. | `live` |
+
+A stale answer is used for up to `staleTtlMs` (default 24 hours). After that, the SDK falls back to `onUnavailable`.
+
+<Warning>
+`onUnavailable: 'allow'` lets unknown customers use features while Orvlin is down. Only use it where a short outage is cheaper than blocking paying customers.
+</Warning>
+
+## Warm the cache
+
+Prefetch the customers you expect to see, such as the ones active at deploy time, so the first request does not wait:
+
+```ts
+await orvlin.prefetch(['cust_acme', 'cust_globex']);
+```
+
+Save the cache with `snapshot()` and restore it with `restore()` to warm a new process from a previous one.
+
+## Invalidate after a change
+
+When you change a customer's plan or grant them something, drop the cached answer so the next check is live:
+
+```ts
+orvlin.invalidate('cust_acme'); // one customer
+orvlin.invalidate();            // everyone
+```
+
+Orvlin also sends `subscription.plan_change` webhooks. Invalidate on those if you cache outside the SDK.
+
+## Grant access directly
+
+To give a customer a feature or a higher limit outside their plan, add an entitlement grant:
+
+```bash
+curl -X POST "$ORVLIN_API/v1/customers/cust_acme/entitlement-grants" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "featureId": "api_calls",
+    "limit": 50000,
+    "reason": "Pilot agreement",
+    "expiresAt": "2027-03-31T00:00:00Z"
+  }'
+```
+
+`featureId` is required. `limit`, `reason`, and `expiresAt` are optional. `expiresAt` must be in the future. Grants are invalidated in the SDK cache automatically when the API creates them.
+
+Remove a grant with `DELETE /v1/entitlement-grants/:grantId`.
+
+## React
+
+In a React app, wrap components with `<Feature>` to show or hide them by entitlement. See [React SDK](/sdks/react).

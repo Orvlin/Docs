@@ -1,0 +1,63 @@
+---
+title: 'Customer portal API'
+description: 'Create portal sessions and call customer-facing endpoints with a portal token'
+---
+
+The customer portal API lets a signed-in customer see their own plan, usage, invoices, and credits, and change plans where you allow it. Your backend creates a session. The browser then calls the portal endpoints with that session's token. For how the pieces fit together, see [Customer portal](/guides/customer-portal).
+
+## Create a session
+
+Call this from your backend with your API key.
+
+```http
+POST /v1/portal/sessions
+Authorization: Bearer orv_xxxxxxxx_your_secret
+```
+
+```json
+{
+  "customerId": "cust_acme",
+  "expiresInSeconds": 3600,
+  "allowPlanChanges": true,
+  "allowCreditPurchases": false
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `customerId` | string | Yes | The customer the session is for. |
+| `expiresInSeconds` | integer | No | How long the session lasts, from 1 to 86,400. |
+| `allowPlanChanges` | boolean | No | Lets the customer switch to another published plan. |
+| `allowCreditPurchases` | boolean | No | Lets the customer buy credits, invoiced to them. |
+
+Pass the session token to the browser. Don't pass your API key.
+
+## Call portal endpoints
+
+Send the portal token as a Bearer token:
+
+```http
+GET /v1/portal/me
+Authorization: Bearer <portal token>
+```
+
+A portal token can only read and act on its own customer. Requests with a token for another customer, or an expired one, are refused.
+
+## Endpoints
+
+| Method and path | Description |
+|---|---|
+| `GET /v1/portal/me` | The customer. |
+| `GET /v1/portal/config` | Which portal features are enabled for this session. |
+| `GET /v1/portal/plans` | Published plans the customer can switch to. |
+| `GET /v1/portal/plan-change/preview?planId=…` | What switching to a plan would cost. Changes nothing. |
+| `POST /v1/portal/plan-change` | Switch the customer to a plan. |
+| `GET /v1/portal/usage` | Usage for the current period. |
+| `GET /v1/portal/entitlements` | Features and remaining allowances. |
+| `GET /v1/portal/wallets` | Credit balances. |
+| `GET /v1/portal/credits` | Credit history. |
+| `POST /v1/portal/wallets/:type/purchase` | Buy credits, invoiced to the customer. Requires `allowCreditPurchases`. |
+| `GET /v1/portal/invoices` | The customer's invoices. |
+| `GET /v1/portal/upcoming` | The next invoice. |
+
+Show the plan-change preview before the customer confirms a change.

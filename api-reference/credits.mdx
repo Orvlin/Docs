@@ -1,0 +1,93 @@
+---
+title: 'Credits'
+description: 'Define credit types, and grant, sell, and track credits in customer wallets'
+---
+
+Credits are prepaid balances. A credit type defines what the credits are for. Each customer has a wallet for each credit type. For how credits fit together, see [Prepaid credits](/guides/prepaid-credits).
+
+## Credit types
+
+| Method and path | Description |
+|---|---|
+| `GET /v1/credit-types` | List credit types. |
+| `POST /v1/credit-types` | Create a credit type. |
+| `GET /v1/credit-types/:type` | Get one credit type. |
+| `PATCH /v1/credit-types/:type` | Update it. |
+| `GET /v1/credit-types/:type/rates` | List the credit type's rates. |
+| `POST /v1/credit-types/:type/rates` | Add a rate. |
+| `DELETE /v1/credit-types/:type/rates/:rateId` | Remove a rate. |
+| `GET /v1/credit-types/:type/allowances` | List allowances. |
+| `POST /v1/credit-types/:type/allowances` | Add an allowance. |
+| `DELETE /v1/credit-types/:type/allowances/:allowanceId` | Remove an allowance. |
+
+A credit type's `overage` setting decides what happens at zero: `block` stops usage, and `allow` lets it continue and bills the overage.
+
+## Wallets
+
+Each path is per customer and credit type.
+
+| Method and path | Description |
+|---|---|
+| `GET /v1/customers/:id/wallets` | Balances for every credit type. |
+| `GET /v1/customers/:id/wallets/:type` | The balance for one credit type. |
+| `POST /v1/customers/:id/wallets/:type/grants` | Grant credits. |
+| `POST /v1/customers/:id/wallets/:type/purchases` | Sell credits. |
+| `POST /v1/customers/:id/wallets/:type/blocks/:blockId/void` | Void a block of credits. |
+| `GET /v1/customers/:id/wallets/:type/ledger` | The history of grants, purchases, and draw-downs. |
+| `GET /v1/customers/:id/wallets/:type/auto-top-up` | Read the auto top-up settings. |
+| `PUT /v1/customers/:id/wallets/:type/auto-top-up` | Set the auto top-up settings. |
+| `DELETE /v1/customers/:id/wallets/:type/auto-top-up` | Turn off auto top-up. |
+
+### Grant body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `amount` | number | Yes | How many credits to grant. Must be positive. |
+| `source` | string | No | `grant`, `promotional`, or `purchase`. |
+| `priority` | integer | No | 0 to 1000. Lower numbers are used first. |
+| `effectiveAt` | string | No | When the credits become available. |
+| `expiresAt` | string | No | When the credits expire. |
+| `costBasis` | number | No | What you paid for the credits, for reporting. |
+| `currency` | string | No | Three-letter ISO code. |
+| `description` | string | No | A note for the ledger. |
+| `idempotencyKey` | string | No | Makes a retry grant the credits once. |
+
+### Purchase body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `credits` | number | Yes | How many credits to sell. |
+| `unitPrice` | number | No | Price per credit. Defaults to the credit type's price. |
+| `currency` | string | No | Three-letter ISO code. |
+| `expiresAt` | string | No | When the purchased credits expire. |
+| `collection` | string | No | `charge` (card on file, default) or `send_invoice`. |
+| `description` | string | No | A note for the ledger. |
+| `idempotencyKey` | string | No | Makes a retry sell the credits once. |
+
+A purchase starts as `pending_payment`. It becomes `active` when paid.
+
+### Auto top-up body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `threshold` | number | Yes | Top up when the balance is at or below this. |
+| `credits` | number | Yes | How many credits to buy each time. |
+| `unitPrice` | number | No | Price per credit. |
+| `maxPerMonth` | integer | No | Most top-ups per calendar month. Default 5. |
+| `enabled` | boolean | No | Turn the rule on or off. |
+
+## Check a balance
+
+```http
+GET /v1/wallets/check?customerId=cust_acme&creditType=ai_images&quantity=1
+```
+
+| Parameter | Description |
+|---|---|
+| `customerId` | Required. The customer to check. |
+| `creditType` | The credit type to check. |
+| `eventName` | The event being checked, when the credit rate depends on the event. |
+| `quantity` | How many units are being used. Must be zero or more. |
+| `amount` | An amount to check instead of a quantity. Must be zero or more. |
+
+Returns whether the balance covers the request, and the balance itself. The [Node](/sdks/node#credits) and [Python](/sdks/python#credits) SDKs wrap this call as `checkCredits` and `check_credits`.

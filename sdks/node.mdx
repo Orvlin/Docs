@@ -1,0 +1,155 @@
+---
+title: 'Node.js SDK'
+description: 'Check entitlements, track usage, and manage credits from a Node.js server'
+---
+
+The `@orvlin/node` package is the server-side SDK for Node.js. Use it in the request path of your API to check entitlements and report usage.
+
+## Install
+
+```bash
+npm install @orvlin/node
+```
+
+## Create a client
+
+```ts
+import { Orvlin } from '@orvlin/node';
+
+const orvlin = new Orvlin({
+  apiKey: process.env.ORVLIN_API_KEY!,
+  baseUrl: 'https://api.orvlin.com',
+});
+```
+
+Use the smallest API key role that works. A `viewer` key can check entitlements. Reporting usage needs a `developer` key.
+
+### Options
+
+| Option | Default | Description |
+|---|---|---|
+| `apiKey` | required | Your API key. |
+| `baseUrl` | `ORVLIN_API_URL` | Your Orvlin host. |
+| `cacheTtlMs` | `30000` | How long a checked answer is fresh. |
+| `staleTtlMs` | 24 hours | How long a stale answer may be used when Orvlin is unreachable. |
+| `timeoutMs` | `2000` | Timeout for each request to Orvlin. |
+| `onUnavailable` | `'deny'` | Answer for a customer the cache has never seen while Orvlin is unreachable. |
+| `fetch` | global `fetch` | Inject a fetch implementation for tests or proxies. |
+| `logger` | none | Receives warnings, with `warn(message, meta)`. |
+
+## Check an entitlement
+
+```ts
+const { hasAccess, remaining, source } = await orvlin.check('cust_acme', 'api_calls', { amount: 1 });
+```
+
+`check` returns:
+
+| Field | Description |
+|---|---|
+| `hasAccess` | Whether the customer can use the feature. |
+| `allocated` | The allowance, or `null` for no cap. |
+| `consumed` | How much has been used this period. |
+| `remaining` | What is left, or `null` for no cap. |
+| `source` | `cache`, `stale`, `live`, or `fallback`. See [Entitlements](/guides/entitlements#how-answers-are-cached). |
+
+To read all of a customer's entitlements:
+
+```ts
+const entitlements = await orvlin.getEntitlements('cust_acme');
+```
+
+To check synchronously from the cache only, use `checkCached`. It returns `null` when there is no cached answer yet.
+
+## Cache management
+
+```ts
+await orvlin.prefetch(['cust_acme', 'cust_globex']); // warm the cache
+orvlin.invalidate('cust_acme');                      // drop one customer
+orvlin.invalidate();                                 // drop everything
+
+const snapshot = orvlin.snapshot();                  // save the cache
+orvlin.restore(snapshot);                            // load it into a new process
+```
+
+## Track usage
+
+```ts
+await orvlin.track({
+  customerId: 'cust_acme',
+  eventName: 'api_call',
+  idempotencyKey: requestId,
+  properties: { endpoint: '/v1/search', statusCode: 200, latencyMs: 142 },
+});
+```
+
+Pass an array to send several events in one call:
+
+```ts
+const result = await orvlin.track([
+  { customerId: 'cust_acme', eventName: 'api_call', idempotencyKey: 'req_1' },
+  { customerId: 'cust_acme', eventName: 'api_call', idempotencyKey: 'req_2' },
+]);
+// result: { accepted: 2, rejected: [] }
+```
+
+`track` returns the number accepted and the rejected events, with their index and the reason. Using the same `idempotencyKey` for retries counts the event once.
+
+## Credits
+
+```ts
+const { allowed, balance } = await orvlin.checkCredits('cust_acme', {
+  creditType: 'ai_images',
+  quantity: 1,
+});
+
+const wallets = await orvlin.getCreditBalances('cust_acme');
+
+await orvlin.grantCredits('cust_acme', 'ai_images', {
+  amount: 500,
+  source: 'promotional',
+  idempotencyKey: 'promo_launch_acme',
+});
+
+await orvlin.purchaseCredits('cust_acme', 'ai_images', {
+  credits: 1000,
+  collection: 'charge',
+  idempotencyKey: 'order_20261012_001',
+});
+
+await orvlin.setAutoTopUp('cust_acme', 'ai_images', {
+  threshold: 100,
+  credits: 1000,
+  maxPerMonth: 5,
+  enabled: true,
+});
+```
+
+See [Prepaid credits](/guides/prepaid-credits) for how these fit together.
+
+## Errors
+
+Failed calls throw `OrvlinError`, which has a `status` property for the HTTP status code when there is one.
+
+```ts
+import { OrvlinError } from '@orvlin/node';
+
+try {
+  await orvlin.track(event);
+} catch (err) {
+  if (err instanceof OrvlinError && err.status === 401) {
+    // The API key is missing, revoked, or has the wrong role.
+  }
+}
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Usage metering" icon="gauge" href="/guides/usage-metering">
+    Design events so the numbers are right.
+  </Card>
+  <Card title="Errors" icon="triangle-exclamation" href="/api-reference/errors">
+    What each status code means.
+  </Card>
+</CardGroup>

@@ -1,0 +1,37 @@
+---
+title: 'Single sign-on'
+description: 'Sign your team in through your identity provider with OIDC or SAML'
+---
+
+Each workspace can sign its people in through its own identity provider, over **OIDC** or **SAML 2.0**. Set it up in **Settings → Single sign-on**.
+
+## Setup
+
+1. **Create a connection.** Choose the protocol, give it a name, and list the email domains it covers, such as `acme.com`.
+2. **Verify your domain.** Add the DNS record shown on the connection, for example `TXT _orvlin-sso.acme.com = orvlin-sso=…`, then press **Check DNS**. Until a domain is verified, nobody can sign in through the connection for it. Public mail domains such as gmail.com cannot be claimed.
+3. **Configure your identity provider** with the values shown on the connection card.
+4. **Test it.** Sign out, choose **Sign in with SSO** on the login page, and enter a work email.
+5. **Optional: require SSO.** This turns off password and magic-link sign-in for people on those domains.
+
+## Identity provider settings
+
+| Provider | Protocol | What to enter |
+|---|---|---|
+| Okta | OIDC (Web app, Authorization Code, PKCE) | Sign-in redirect URI = the *Redirect URI* on the card. Copy the issuer, client ID, and client secret into Orvlin. |
+| Microsoft Entra ID | OIDC (App registration, Web platform) | Redirect URI = the *Redirect URI*. Add a client secret. Issuer: `https://login.microsoftonline.com/<tenant-id>/v2.0`. Add the optional `email` claim. |
+| Microsoft Entra ID | SAML (Enterprise application) | Identifier = the *SP entity ID*. Reply URL = the *ACS URL*. Copy the Login URL and the Base64 signing certificate into Orvlin. |
+| Google Workspace | SAML (custom SAML app) | ACS URL and Entity ID from the card. Name ID format `EMAIL`. Copy the SSO URL and certificate. |
+| Auth0, OneLogin, Keycloak, and others | OIDC or SAML | The same fields. |
+
+## How sign-in works
+
+- People without an Orvlin user are created on their first sign-in. Turn off **Create users on first sign-in** to require invitations instead. SSO users get the standard `user` role.
+- After the identity provider responds, the browser receives a single-use code valid for 60 seconds, and the dashboard exchanges it for a normal session. Tokens never appear in a URL.
+
+## Security model
+
+- An identity provider is trusted only for its workspace's verified domains. If it asserts an email on any other domain, sign-in is refused.
+- A person who already belongs to a different Orvlin workspace cannot sign in through another workspace's connection.
+- **OIDC:** authorization code flow with PKCE (S256). The state and nonce are single-use. The ID token signature is checked against the provider's published keys, and the issuer, audience, expiry, and nonce are enforced. `email_verified: false` is refused.
+- **SAML:** the assertion signature must verify against the configured certificate. The audience, recipient, and validity window are enforced. A response can be used once. Sign-in must start from Orvlin; IdP-initiated responses are refused.
+- Client secrets are stored encrypted.

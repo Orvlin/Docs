@@ -1,0 +1,114 @@
+---
+title: 'Python SDK'
+description: 'Check entitlements, track usage, and manage credits from Python'
+---
+
+The `orvlin` package is the Python SDK for server-side code. It mirrors the [Node.js SDK](/sdks/node): the same entitlement cache, usage tracking, and credit operations, with Python naming. It supports Python 3.9 and later. An async client, `AsyncOrvlin`, is also included.
+
+## Install
+
+```bash
+pip install orvlin
+```
+
+## Create a client
+
+```python
+import os
+from orvlin import Orvlin
+
+orvlin = Orvlin(
+    api_key=os.environ["ORVLIN_API_KEY"],
+    base_url="https://api.orvlin.com",
+)
+```
+
+If you omit `base_url`, the client reads `ORVLIN_API_URL`.
+
+### Options
+
+| Option | Default | Description |
+|---|---|---|
+| `api_key` | required | Your API key. |
+| `base_url` | `ORVLIN_API_URL` | Your Orvlin host. |
+| `cache_ttl` | `30.0` | Seconds a checked answer is fresh. |
+| `stale_ttl` | 24 hours | Seconds a stale answer may be used when Orvlin is unreachable. |
+| `timeout` | `2.0` | Seconds to wait for each request. |
+| `on_unavailable` | `"deny"` | Answer for a customer the cache has never seen while Orvlin is unreachable. Or `"allow"`. |
+| `logger` | none | A `logging.Logger` for warnings. |
+
+## Check an entitlement
+
+```python
+check = orvlin.check("cust_acme", "api_calls", amount=1)
+
+if not check.has_access:
+    raise PermissionError("Upgrade your plan to continue.")
+```
+
+The result has `has_access`, `allocated`, `consumed`, `remaining`, and `source`. `remaining` is `None` for no cap.
+
+Other cache operations:
+
+```python
+orvlin.prefetch(["cust_acme", "cust_globex"])
+orvlin.invalidate("cust_acme")   # or orvlin.invalidate() for everyone
+state = orvlin.snapshot()        # save the cache
+orvlin.restore(state)            # load it into a new process
+```
+
+## Track usage
+
+```python
+orvlin.track({
+    "customer_id": "cust_acme",
+    "event_name": "api_call",
+    "idempotency_key": request_id,
+    "properties": {"endpoint": "/v1/search", "status_code": 200, "latency_ms": 142},
+})
+```
+
+Pass a list to send several events in one call. Each event's `idempotency_key` makes retries count once. `timestamp` accepts a `datetime` or an ISO 8601 string, and defaults to now.
+
+## Credits
+
+```python
+check = orvlin.check_credits("cust_acme", credit_type="ai_images", quantity=1)
+
+orvlin.grant_credits("cust_acme", "ai_images", 500, source="promotional",
+                     idempotency_key="promo_launch_acme")
+
+orvlin.purchase_credits("cust_acme", "ai_images", 1000, collection="charge",
+                        idempotency_key="order_20261012_001")
+
+orvlin.set_auto_top_up("cust_acme", "ai_images", threshold=100, credits=1000,
+                       max_per_month=5, enabled=True)
+```
+
+## Async
+
+Use `AsyncOrvlin` in async code. It takes the same arguments as `Orvlin`, and its methods are awaited:
+
+```python
+from orvlin import AsyncOrvlin
+
+orvlin = AsyncOrvlin(api_key=KEY, base_url="https://api.orvlin.com")
+
+async def handle(request):
+    check = await orvlin.check("cust_acme", "api_calls", amount=1)
+    ...
+```
+
+## Errors
+
+Failed calls raise `OrvlinError`. Its `status` attribute holds the HTTP status code when there is one.
+
+```python
+from orvlin import OrvlinError
+
+try:
+    orvlin.track(event)
+except OrvlinError as err:
+    if err.status == 401:
+        ...  # the API key is missing, revoked, or has the wrong role
+```

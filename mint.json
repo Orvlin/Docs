@@ -1,0 +1,84 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Orvlin",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "favicon": "/favicon.png",
+  "colors": {
+    "primary": "#4F46E5",
+    "light": "#818CF8",
+    "dark": "#312E81"
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:support@orvlin.com"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "https://app.orvlin.com"
+  },
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "core-concepts",
+        "pricing-models",
+        "pricing-manifest"
+      ]
+    },
+    {
+      "group": "Guides",
+      "pages": [
+        "guides/usage-metering",
+        "guides/entitlements",
+        "guides/prepaid-credits",
+        "guides/invoicing-and-collection",
+        "guides/customer-portal",
+        "guides/integrations",
+        "guides/sso",
+        "testing"
+      ]
+    },
+    {
+      "group": "SDKs and Tools",
+      "pages": [
+        "sdks/node",
+        "sdks/python",
+        "sdks/react",
+        "sdks/cli"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/overview",
+        "api-reference/authentication",
+        "api-reference/api-keys",
+        "api-reference/errors",
+        "api-reference/events",
+        "api-reference/customers",
+        "api-reference/metrics",
+        "api-reference/prices",
+        "api-reference/plans",
+        "api-reference/subscriptions",
+        "api-reference/invoices",
+        "api-reference/credits",
+        "api-reference/licenses",
+        "api-reference/webhooks",
+        "api-reference/portal"
+      ]
+    },
+    {
+      "group": "Contributing",
+      "pages": [
+        "development"
+      ]
+    }
+  ]
+}

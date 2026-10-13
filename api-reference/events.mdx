@@ -1,0 +1,78 @@
+---
+title: 'Events'
+description: 'Send usage events and list them'
+---
+
+Events are the raw usage records that metrics aggregate. Send them as customers do things in your product. See [Usage metering](/guides/usage-metering) for how to design them.
+
+## Send events
+
+```http
+POST /v1/events
+```
+
+Send one event, an array of events, or an object with an `events` array:
+
+```json
+{
+  "events": [
+    {
+      "customerId": "cust_acme",
+      "eventName": "api_call",
+      "timestamp": "2026-10-12T09:30:00Z",
+      "idempotencyKey": "req_8f2c1a",
+      "properties": {
+        "endpoint": "/v1/search",
+        "method": "POST",
+        "statusCode": 200,
+        "latencyMs": 142
+      }
+    }
+  ]
+}
+```
+
+### Event fields
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `customerId` | string | Yes | The customer who did the action. |
+| `eventName` | string | Yes | The kind of event, such as `api_call`. Matches the name your metrics use. |
+| `timestamp` | string | No | When it happened, in ISO 8601. Defaults to the time of ingestion. |
+| `idempotencyKey` | string | No | An ID for this action. Events with the same key are counted once. |
+| `properties` | object | No | Values that metrics aggregate, such as `latencyMs` or `tokens`. |
+
+### Response
+
+```json
+{
+  "accepted": ["01KWMD..."],
+  "rejected": []
+}
+```
+
+`accepted` lists the IDs of stored events. `rejected` lists events that failed validation, with the reason, so you can fix and resend them.
+
+## List events
+
+```http
+GET /v1/events
+```
+
+| Parameter | Type | Description |
+|---|---|---|
+| `customer_id` | string | Only events for this customer. |
+| `event_name` | string | Only events with this name. |
+| `start_time` | string | Events at or after this ISO 8601 time. |
+| `end_time` | string | Events before this ISO 8601 time. Defaults to now. |
+| `limit` | number | How many to return. Defaults to 100. |
+
+When no time range is given, the list covers the last 30 days.
+
+## Backfill events
+
+To load historical usage, send the events to `POST /v1/events/backfill`. Use it for past periods, not for live traffic. Send live events to `POST /v1/events`.
+
+## Query events
+
+`POST /v1/events/query` runs a query over stored events. Use it to explore your data. Billing is computed from [metrics](/api-reference/metrics), not from ad-hoc queries.

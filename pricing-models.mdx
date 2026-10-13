@@ -1,0 +1,96 @@
+---
+title: 'Pricing models'
+description: 'Choose how a price turns usage into an amount'
+---
+
+Every price has a `config` object whose `model` decides how the metric's value becomes an amount. Amounts are in the price's `currency` (three-letter ISO code, default `USD`).
+
+## Unit
+
+Charge a fixed amount per unit.
+
+```json
+{ "model": "unit", "unitPrice": 0.001, "currency": "USD" }
+```
+
+100,000 calls cost 100,000 × 0.001 = $100.
+
+## Tiered
+
+Charge different unit prices for different ranges. Each tier has an `upTo` limit (`null` means no limit), a `unitPrice`, and an optional `flatFee` charged once when the tier is reached.
+
+```json
+{
+  "model": "tiered",
+  "currency": "USD",
+  "tiers": [
+    { "upTo": 1000, "unitPrice": 0.02 },
+    { "upTo": 10000, "unitPrice": 0.01 },
+    { "upTo": null, "unitPrice": 0.005 }
+  ]
+}
+```
+
+Tiers are graduated: the first 1,000 units use the first tier's price, the next 9,000 use the second, and the rest use the third.
+
+## Bulk
+
+Like tiered, but the tier a total falls into sets the unit price for every unit. There are no splits across tiers.
+
+```json
+{
+  "model": "bulk",
+  "currency": "USD",
+  "tiers": [
+    { "upTo": 1000, "unitPrice": 0.02 },
+    { "upTo": null, "unitPrice": 0.01 }
+  ]
+}
+```
+
+With 1,500 units, all 1,500 are billed at $0.01.
+
+## Package
+
+Charge per block of units. A `size` and a `unitPrice` define each package; the amount is the number of packages needed, rounded up, multiplied by the package price.
+
+```json
+{
+  "model": "package",
+  "currency": "USD",
+  "packages": [{ "size": 1000, "unitPrice": 5 }]
+}
+```
+
+1,001 units bill two packages, $10.
+
+## Percentage
+
+Charge a percentage of another metric's value. Useful for payment-style fees on transaction volume.
+
+```json
+{ "model": "percentage", "basisMetricId": "<metric id>", "percentage": 2.5, "currency": "USD" }
+```
+
+## License
+
+Charge per seat for a license type you allocate to customers with [`POST /v1/licenses`](/api-reference/licenses).
+
+```json
+{ "model": "license", "licenseTypeId": "seats", "unitPrice": 12, "currency": "USD" }
+```
+
+## Choosing a model
+
+| You want to charge... | Use |
+|---|---|
+| A fixed rate per call, token, or event | `unit` |
+| Less per unit as volume grows, billed in steps | `tiered` |
+| One rate for all units, based on total volume | `bulk` |
+| In blocks, such as per 1,000 messages | `package` |
+| A cut of another metric's value | `percentage` |
+| A price per seat | `license` |
+
+<Note>
+A price with no metric is a flat fee. Set `metricId` to `null` (or omit it) and use a `cadence` of `monthly`, `quarterly`, `annual`, or `one_time`.
+</Note>

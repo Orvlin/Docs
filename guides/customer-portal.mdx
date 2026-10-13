@@ -1,0 +1,58 @@
+---
+title: 'Customer portal'
+description: 'Let customers see usage, invoices, and plans, and change their own plan'
+---
+
+The customer portal is a set of endpoints your application can put in front of its own customers. A customer can see their plan, usage, credits, and invoices, and can change plans or buy credits if you allow it. You control access through short-lived portal sessions, so customers never use your API key.
+
+## How it works
+
+1. Your backend creates a **portal session** for a customer with your API key.
+2. Your backend passes the session token to the browser.
+3. The browser calls the portal endpoints with the session token as a Bearer token.
+
+Sessions are scoped to one customer and expire after `expiresInSeconds` (up to 24 hours).
+
+## Create a session
+
+```bash
+curl -X POST "$ORVLIN_API/v1/portal/sessions" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": "cust_acme",
+    "expiresInSeconds": 3600,
+    "allowPlanChanges": true,
+    "allowCreditPurchases": false
+  }'
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `customerId` | Yes | The customer the session is for. |
+| `expiresInSeconds` | No | How long the session lasts, from 1 to 86,400. |
+| `allowPlanChanges` | No | Lets the customer switch to another published plan. |
+| `allowCreditPurchases` | No | Lets the customer buy credits, paid by invoice. |
+
+Create the session on your server, and only when the customer is signed in to your application.
+
+## What the customer can see
+
+With the session token, the portal calls return:
+
+- `GET /v1/portal/me`: the customer's own profile.
+- `GET /v1/portal/config`: which portal features are enabled.
+- `GET /v1/portal/plans`: plans the customer can switch to.
+- `GET /v1/portal/usage`: consumption for the current period.
+- `GET /v1/portal/entitlements`: features and remaining allowances.
+- `GET /v1/portal/wallets` and `GET /v1/portal/credits`: credit balances.
+- `GET /v1/portal/invoices`: invoices.
+- `GET /v1/portal/upcoming`: the next invoice.
+
+To change plans, call `GET /v1/portal/plan-change/preview?planId=…` to show the customer what will happen, then `POST /v1/portal/plan-change` to apply it. Preview doesn't change anything, so show it before the customer confirms.
+
+To buy credits when `allowCreditPurchases` is on, call `POST /v1/portal/wallets/:type/purchase`, where `:type` is the credit type. The purchase is invoiced to the customer.
+
+## Build your own UI
+
+The portal is a set of plain HTTP endpoints, so you can build the screens in your own application. The [React SDK](/sdks/react) provides hooks for entitlements and credits that you can use alongside them.

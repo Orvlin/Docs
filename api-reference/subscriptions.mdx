@@ -1,0 +1,91 @@
+---
+title: 'Subscriptions'
+description: 'Subscribe customers to plans, change them, and cancel them'
+---
+
+A subscription connects a customer to a plan from a start date. Subscriptions drive billing: each billing period produces an invoice for the prices in the plan.
+
+## Create a subscription
+
+```http
+POST /v1/subscriptions
+```
+
+```json
+{
+  "customerId": "cust_acme",
+  "planId": "01JX0F8K4W3Z9YQ6V7M2T5R8B1"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `customerId` | string | Yes | The customer to subscribe. Must exist in your workspace. |
+| `planId` | string | Yes | The plan's `id` (not its name). Must exist in your workspace. |
+
+Responds `201 Created`. Returns `404` if the customer or plan doesn't exist in your workspace.
+
+## List subscriptions
+
+```http
+GET /v1/subscriptions
+GET /v1/subscriptions?status=active
+```
+
+With `status=active`, only active subscriptions are returned. Response: `{ "data": [ … ] }`.
+
+## Get a subscription
+
+```http
+GET /v1/subscriptions/:id
+```
+
+## Status
+
+| Status | Meaning |
+|---|---|
+| `trialing` | In a trial period. |
+| `active` | Billing normally. |
+| `past_due` | A payment failed and retries are underway. |
+| `paused` | Not billing. |
+| `canceled` | Ended. |
+
+## Cancel
+
+```http
+POST /v1/subscriptions/:id/cancel
+```
+
+```json
+{ "immediately": false }
+```
+
+| Field | Default | Description |
+|---|---|---|
+| `immediately` | `false` | `true` ends the subscription now. `false` ends it at the end of the current period. |
+
+## Change a plan
+
+Amend a subscription to change its prices or plan:
+
+| Method and path | Description |
+|---|---|
+| `POST /v1/subscriptions/:id/amend` | Apply a change now. |
+| `POST /v1/subscriptions/:id/schedule-amendment` | Apply a change at a future date. |
+| `GET /v1/subscriptions/:id/amendments` | List changes made to the subscription. |
+| `POST /v1/subscriptions/:id/migrate` | Move the subscription to a newer version of its plan. |
+
+To see what a change costs before applying it, compute the next invoice with `POST /v1/subscriptions/:id/invoices/compute`. To issue an invoice for the subscription now, use `POST /v1/subscriptions/:id/invoices`.
+
+## Coupons
+
+| Method and path | Description |
+|---|---|
+| `POST /v1/subscriptions/:id/coupons` | Apply a coupon. |
+| `DELETE /v1/subscriptions/:id/coupons/:redemptionId` | Remove a coupon. |
+
+Create and deactivate coupons with `POST /v1/coupons` and `POST /v1/coupons/:id/deactivate`.
+
+## Billing runs
+
+Orvlin bills subscriptions on a schedule. To run billing yourself, use `POST /v1/billing/run`. To see the schedule and past runs, use `GET /v1/billing/schedule` and `GET /v1/billing/history`.

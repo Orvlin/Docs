@@ -1,0 +1,65 @@
+---
+title: 'Testing'
+description: 'Test billing behaviour in sandbox with test clocks'
+---
+
+Billing is time-based, so the hard cases are the ones that happen weeks later: a renewal, a failed card, a plan change at mid-cycle. Orvlin gives you two tools to test them without waiting: a sandbox workspace and test clocks.
+
+## Sandbox
+
+New workspaces start in sandbox mode. In sandbox:
+
+- Payments never reach a real payment processor.
+- Customers, events, subscriptions, and invoices behave the same as in production.
+
+Use a sandbox for integration tests and staging environments. Use a separate API key for each environment, and never use a production key in tests.
+
+## Test clocks
+
+A test clock is a simulated time you control. Attach customers to a clock, then move the clock forward to trigger renewals, invoices, and payment retries.
+
+### 1. Create a clock
+
+```bash
+curl -X POST "$ORVLIN_API/v1/test-clocks" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "Renewal test", "frozenTime": "2026-10-01T00:00:00Z" }'
+```
+
+`name` is required. `frozenTime` sets the clock's starting time (ISO 8601 with a timezone offset). Without it, the clock starts at the current time.
+
+### 2. Attach a customer
+
+Attach one customer per request:
+
+```bash
+curl -X POST "$ORVLIN_API/v1/test-clocks/<clock id>/customers" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "customerId": "cust_acme" }'
+```
+
+### 3. Advance time
+
+```bash
+curl -X POST "$ORVLIN_API/v1/test-clocks/<clock id>/advance" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "to": "2026-11-01T00:00:00Z" }'
+```
+
+`to` is required and must be an ISO 8601 timestamp. Advancing the clock moves the attached customers' billing forward to that time, so renewals and invoices due in the interval are processed.
+
+Clocks, their customers, and advance calls are available at `/v1/test-clocks`. See the [API overview](/api-reference/overview) for the full list.
+
+## What to test
+
+- **Mid-cycle upgrade**: change plans and check the prorated invoice.
+- **Usage over a cap**: send events past the limit and check the entitlement.
+- **Failed payment**: use a test card that declines, then advance through the retry schedule.
+- **Cancellation**: cancel immediately and at period end, and check the final invoice.
+
+## Load testing
+
+Orvlin's ingestion endpoint accepts batches. Send batches with a stable `idempotencyKey` so retries do not inflate counts, and compare the accepted total with the number you sent.

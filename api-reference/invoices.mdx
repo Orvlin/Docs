@@ -1,0 +1,119 @@
+---
+title: 'Invoices'
+description: 'List, approve, pay, void, and credit invoices, and read their payment history'
+---
+
+Invoices are issued for subscription periods, credit purchases, and manual charges. For the lifecycle and what each action means, see [Invoicing and collection](/guides/invoicing-and-collection).
+
+## List invoices
+
+```http
+GET /v1/invoices?status=open&customer_id=cust_acme&page=1&page_size=20
+```
+
+| Parameter | Default | Description |
+|---|---|---|
+| `status` | | Only invoices with this status: `draft`, `open`, `paid`, `void`, or `uncollectible`. |
+| `customer_id` | | Only invoices for this customer. |
+| `page` | `1` | Which page to return. |
+| `page_size` | `20` | Invoices per page. Maximum 100. |
+
+Response:
+
+```json
+{
+  "data": [
+    {
+      "id": "inv_01JX…",
+      "customerId": "cust_acme",
+      "status": "paid",
+      "total": 42.5,
+      "currency": "USD",
+      "dueDate": "2026-11-01T00:00:00Z"
+    }
+  ],
+  "pagination": { "total": 1, "page": 1, "pageSize": 20 }
+}
+```
+
+## Get an invoice
+
+```http
+GET /v1/invoices/:id
+```
+
+## Approve
+
+Moves a `draft` invoice to `open`.
+
+```http
+POST /v1/invoices/:id/approve
+```
+
+## Pay
+
+Charges the customer's card on file now.
+
+```http
+POST /v1/invoices/:id/pay
+```
+
+Returns `400` if the invoice is already `paid` or has been `void`. In a sandbox workspace the charge is simulated and never reaches a payment processor.
+
+## Void
+
+Cancels an invoice. A voided invoice can't be paid.
+
+```http
+POST /v1/invoices/:id/void
+```
+
+## Credit note
+
+Issues a credit against a paid invoice.
+
+```http
+POST /v1/invoices/:id/credit-note
+```
+
+## PDF and hosted link
+
+| Method and path | Description |
+|---|---|
+| `GET /v1/invoices/:id/pdf` | The invoice as a PDF. |
+| `GET /v1/invoices/:id/link` | A hosted page where the customer can view and pay. |
+
+The hosted page is also available without authentication at `/i/:token`, using the token from the link.
+
+## Payment attempts
+
+```http
+GET /v1/invoices/:id/payment-attempts
+```
+
+Lists each charge attempt for the invoice, including failed ones.
+
+## Payment retries
+
+Configure how failed charges are retried:
+
+| Method and path | Description |
+|---|---|
+| `GET /v1/payment-retry/settings` | The current retry schedule. |
+| `PUT /v1/payment-retry/settings` | Change the schedule. |
+| `GET /v1/payment-retry/summary` | Counts of invoices being retried. |
+| `GET /v1/dunning/processes` | Customer reminders sent during collection. |
+| `GET /v1/dunning/policies` | Reminder policies. |
+
+## Invoice settings
+
+Billing settings, including invoice details, are read with `GET /v1/billing-settings` and changed with `PUT /v1/billing-settings`.
+
+## Revenue
+
+Recognised revenue for invoices is available from:
+
+- `POST /v1/revenue/generate`: create the recognition schedule.
+- `GET /v1/revenue/summary`: totals by period.
+- `GET /v1/revenue/waterfall`: how deferred revenue changes over time.
+- `GET /v1/revenue/contracts`: revenue per contract.

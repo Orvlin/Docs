@@ -1,0 +1,87 @@
+---
+title: 'API keys'
+description: 'Create, list, and revoke API keys, and choose the right role for each one'
+---
+
+API keys let your servers call the Orvlin API. Each key has a name, a role, and a secret.
+
+<Warning>
+A key's secret is shown once, when it is created. Store it in your secret manager. If you lose it, create a new key and revoke the old one.
+</Warning>
+
+## Create a key
+
+```http
+POST /v1/api-keys
+```
+
+Creating a key requires a signed-in user session, so you can't create a key with another key.
+
+```json
+{
+  "name": "Production backend",
+  "role": "developer"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | A label so you can recognise the key later. |
+| `role` | string | No | One of `owner`, `admin`, `developer`, `viewer`, or `billing`. Defaults to `admin`. |
+
+Response (`201 Created`):
+
+```json
+{
+  "data": {
+    "id": "key_01JX…",
+    "name": "Production backend",
+    "role": "developer"
+  },
+  "secret": "orv_xxxxxxxx_your_secret"
+}
+```
+
+`secret` appears only in this response.
+
+## Roles
+
+Give each key the smallest role that does its job.
+
+| Role | Typical use |
+|---|---|
+| `viewer` | Read-only. Can check entitlements and balances. |
+| `developer` | Sends usage events and manages day-to-day customer data. |
+| `billing` | Works with invoices and payments. |
+| `admin` | Manages the catalog, customers, and settings. |
+| `owner` | Full control of the workspace. |
+
+A key can't be created with a higher role than the person creating it. A `developer` user can't create an `admin` key; the key is created with the `developer` role instead.
+
+## List keys
+
+```http
+GET /v1/api-keys
+```
+
+Returns each key's `id`, `name`, and `role`. The secret is never returned after creation.
+
+## Revoke a key
+
+```http
+DELETE /v1/api-keys/:id
+```
+
+Revoked keys stop working immediately. Requests with them return `401`.
+
+```json
+{ "success": true }
+```
+
+Revoking requires a signed-in user session.
+
+## Rotate a key
+
+1. Create a new key with the same role.
+2. Deploy your application with the new key.
+3. Revoke the old key.

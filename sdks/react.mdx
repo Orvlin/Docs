@@ -1,0 +1,84 @@
+---
+title: 'React SDK'
+description: 'Show features, balances, and plan options in a React app with the customer portal'
+---
+
+The `@orvlin/react` package provides React components and hooks for your customer-facing app. It reads a signed-in customer's entitlements and credit balances, so you can show or hide features in the UI.
+
+<Note>
+The React SDK does not use your API key. It authenticates with a **portal token** for one customer. Your backend creates that token with a [portal session](/guides/customer-portal) and passes it to the browser. Never put your API key in browser code.
+</Note>
+
+## Install
+
+```bash
+npm install @orvlin/react
+```
+
+## Provide the client
+
+Wrap your app in `OrvlinProvider`:
+
+```tsx
+import { OrvlinProvider } from '@orvlin/react';
+
+export function App({ portalToken }: { portalToken: string }) {
+  return (
+    <OrvlinProvider token={portalToken} apiBase="https://api.orvlin.com">
+      <Dashboard />
+    </OrvlinProvider>
+  );
+}
+```
+
+| Prop | Description |
+|---|---|
+| `token` | The portal token for the signed-in customer. |
+| `getToken` | Instead of `token`: a function that returns one. It is called again when the token expires. |
+| `apiBase` | Your Orvlin API host. |
+| `refreshIntervalMs` | How often to refresh what is shown, in milliseconds. Default `30000`. `0` turns it off. |
+| `client` | An existing client to share with non-React code. |
+
+## Show a feature
+
+The `<Feature>` component renders its children only if the customer can use the feature:
+
+```tsx
+import { Feature } from '@orvlin/react';
+
+<Feature name="api_calls" amount={1} fallback={<UpgradePrompt />} loading={<Spinner />}>
+  <RunSearchButton />
+</Feature>
+```
+
+## Hooks
+
+```tsx
+import { useEntitlement, useEntitlements, useCredits } from '@orvlin/react';
+
+// One feature
+const { hasAccess, remaining, loading } = useEntitlement('api_calls', { amount: 1 });
+
+// Everything the customer can use
+const { entitlements, loading, error, refresh } = useEntitlements();
+
+// Credit balances; pass a credit type to focus on one
+const { wallet, balance, wallets, refresh } = useCredits('ai_images');
+```
+
+Each hook returns `loading` so you can render a placeholder while data arrives. `useEntitlements` and `useCredits` also return `error`.
+
+## Refresh after a change
+
+Entitlements and balances refresh on the interval you set. To refresh straight after the customer does something, call `refresh()` from `useEntitlements` or `useCredits`.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Customer portal" icon="id-card" href="/guides/customer-portal">
+    Create the portal session your app needs.
+  </Card>
+  <Card title="Entitlements" icon="shield-check" href="/guides/entitlements">
+    How checks and limits work.
+  </Card>
+</CardGroup>

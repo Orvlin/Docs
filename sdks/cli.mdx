@@ -1,0 +1,113 @@
+---
+title: 'CLI'
+description: 'The orvlin command-line tool for local development, pricing manifests, and simulations'
+---
+
+The `orvlin` command-line tool runs a local development server, scaffolds a project, generates SDK code from your pricing manifest, validates and deploys that manifest, and simulates what a subscription would be billed.
+
+## Run it
+
+From the repository, build once and then run commands as `orvlin`:
+
+```bash
+pnpm install
+pnpm run build
+orvlin --help
+```
+
+Every command accepts `-v, --verbose` for detailed logs and `--config <path>` to point at a config file.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `orvlin init` | Creates a starter project in a directory. |
+| `orvlin dev` | Runs a local development server with a SQLite database, live reload, and your manifest applied. |
+| `orvlin generate` | Generates typed SDK code from your manifest. |
+| `orvlin deploy` | Validates and deploys the manifest to an environment. |
+| `orvlin simulate` | Simulates billing for a subscription or customer over a period. |
+
+### `orvlin init`
+
+```bash
+orvlin init my-billing --template starter --package-manager pnpm
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `[directory]` | `.` | Where to create the project. |
+| `--template <name>` | `starter` | The project template. |
+| `--package-manager <name>` | `pnpm` | The package manager to use. |
+
+### `orvlin dev`
+
+```bash
+orvlin dev --manifest pricing.yaml
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `-m, --manifest <path>` | `pricing.yaml` | The pricing manifest. YAML, JSON, or TypeScript. |
+| `-p, --port <number>` | `3000` | HTTP port. |
+| `--ws-port <number>` | `3001` | WebSocket port for live reload. |
+| `--db-path <path>` | `./data/orvlin.db` | The SQLite database file. |
+| `--sdk-output <path>` | `./generated-sdk` | Where generated SDK code is written. |
+| `--no-sdk` | | Skip SDK generation. |
+| `--no-watch` | | Don't watch files for changes. |
+
+The development server accepts the same requests as the hosted API, so you can point your application at `http://localhost:3000` while you build.
+
+### `orvlin generate`
+
+```bash
+orvlin generate --manifest pricing.yaml --output ./generated-sdk
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `-m, --manifest <path>` | `pricing.yaml` | The pricing manifest. |
+| `-o, --output <dir>` | `./generated-sdk` | Output directory. |
+| `--package-name <name>` | `@myorg/orvlin-sdk` | The name of the generated package. |
+| `--watch` | | Regenerate when the manifest changes. |
+
+### `orvlin deploy`
+
+```bash
+orvlin deploy --manifest pricing.yaml --environment development --dry-run
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `-m, --manifest <path>` | `pricing.yaml` | The pricing manifest. |
+| `-e, --environment <name>` | `development` | The environment to deploy to. |
+| `--dry-run` | | Show what would change without applying it. |
+| `--validate-only` | | Check the manifest and stop. |
+
+Deploys are safe to repeat. Resources that haven't changed are left alone. See [Pricing as code](/pricing-manifest).
+
+<Tip>
+Run `--dry-run` first, then review the changes before you deploy to a live workspace.
+</Tip>
+
+### `orvlin simulate`
+
+```bash
+orvlin simulate \
+  --manifest pricing.yaml \
+  --customer cust_acme \
+  --period-start 2026-10-01 \
+  --period-end 2026-10-31 \
+  --output table
+```
+
+| Option | Description |
+|---|---|
+| `-m, --manifest <path>` | The pricing manifest. |
+| `--period-start <date>` / `--period-end <date>` | The period to simulate, as `YYYY-MM-DD`. |
+| `--subscription <id>` | Simulate an existing subscription. |
+| `--customer <id>` | Simulate a customer. |
+| `--plan <name>` | Compare against another plan. |
+| `--price-override <priceId=key:value,...>` | Try a different price. Repeat the option for more. |
+| `--output <format>` | `table` (default) or `json`. |
+
+Use simulation to check a new price on real usage before you publish it.

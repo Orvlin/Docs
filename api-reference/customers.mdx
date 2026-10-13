@@ -1,0 +1,126 @@
+---
+title: 'Customers'
+description: 'Create, read, update, and delete customers, and read their entitlements'
+---
+
+A customer is the party you bill. Every subscription, invoice, event, and entitlement belongs to one.
+
+## Create a customer
+
+```http
+POST /v1/customers
+```
+
+```json
+{
+  "id": "cust_acme",
+  "name": "Acme Corp",
+  "email": "billing@acme.example",
+  "billingEmail": "ap@acme.example",
+  "currency": "USD",
+  "externalId": "crm_0042",
+  "metadata": { "region": "eu-west" }
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | The customer's name. |
+| `id` | string | No | Your identifier. Letters, digits, and `_ . : -`, up to 128 characters. Generated as `cust_…` if omitted. |
+| `email` | string | No | The customer's contact email. |
+| `billingEmail` | string | No | Where invoices are sent, if different from `email`. |
+| `currency` | string | No | Three-letter ISO code. Defaults to `USD`. |
+| `externalId` | string | No | An ID from another system, such as your CRM. |
+| `metadata` | object | No | Any key-value pairs you want to store. |
+
+Responds `201 Created` with the customer.
+
+## List customers
+
+```http
+GET /v1/customers?limit=100&offset=0
+```
+
+| Parameter | Default | Description |
+|---|---|---|
+| `limit` | `100` | How many customers to return. |
+| `offset` | `0` | How many to skip, for paging. |
+
+Response: `{ "data": [ … ] }`.
+
+## Get a customer
+
+```http
+GET /v1/customers/:id
+```
+
+## Update a customer
+
+```http
+PATCH /v1/customers/:id
+```
+
+Send only the fields you want to change.
+
+## Delete a customer
+
+```http
+DELETE /v1/customers/:id
+```
+
+## Entitlements
+
+Entitlements show what a customer can use and how much of each allowance remains.
+
+### All entitlements
+
+```http
+GET /v1/customers/:id/entitlements
+```
+
+```json
+{
+  "customerId": "cust_acme",
+  "entitlements": [
+    {
+      "featureId": "api_calls",
+      "featureName": "API calls",
+      "type": "numeric",
+      "hasAccess": true,
+      "allocated": 100000,
+      "consumed": 42000,
+      "remaining": 58000,
+      "pricingModel": "unit"
+    }
+  ]
+}
+```
+
+`allocated` and `remaining` are `null` for a feature with no cap.
+
+### One feature
+
+```http
+GET /v1/customers/:id/entitlements/:featureName
+```
+
+### Entitlement grants
+
+Grant a customer a feature or a higher limit outside their plan.
+
+| Method and path | Description |
+|---|---|
+| `GET /v1/customers/:id/entitlement-grants` | List the customer's grants. |
+| `POST /v1/customers/:id/entitlement-grants` | Create a grant. |
+| `DELETE /v1/entitlement-grants/:grantId` | Remove a grant. |
+
+Create a grant with `featureId` (required), and optionally `limit`, `reason`, and `expiresAt`. See [Entitlements](/guides/entitlements#grant-access-directly).
+
+## Usage limits
+
+Limits cap a customer's usage in real time, separately from entitlements. Manage them under `/v1/usage-limits`, and check one with `POST /v1/usage-limits/check`. A customer's own limits are at `/v1/customers/:id/usage-limits`.
+
+## Privacy requests
+
+- `GET /v1/customers/:id/data-export` exports everything stored about a customer.
+- `POST /v1/customers/:id/erase` deletes a customer's personal data, as required by privacy law. This cannot be undone.

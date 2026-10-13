@@ -1,0 +1,84 @@
+---
+title: 'Metrics'
+description: 'Define how events are aggregated into billable quantities'
+---
+
+A metric turns events into a number for each billing period. Prices charge for metrics.
+
+## Create a metric
+
+```http
+POST /v1/metrics
+```
+
+```json
+{
+  "name": "api_calls_total",
+  "description": "Total API calls",
+  "aggregation": {
+    "type": "count",
+    "filter": {},
+    "groupBy": []
+  }
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | The metric's name. Prices refer to it. |
+| `description` | string | No | What the metric measures. |
+| `aggregation.type` | string | Yes | `count`, `sum`, `max`, `count_distinct`, or `sql`. |
+| `aggregation.property` | string | For `sum`, `max`, `count_distinct` | The event property to aggregate. Dot paths such as `usage.tokens` are allowed. |
+| `aggregation.filter` | object | No | Only count events whose properties match. |
+| `aggregation.groupBy` | string[] | No | Properties to group by. |
+| `sql` | string | For `sql` | A custom SQL expression. It is checked on creation, and an invalid one is rejected with `400`. |
+
+Responds `201 Created`.
+
+### Examples
+
+Count calls that succeeded:
+
+```json
+{
+  "name": "successful_calls",
+  "aggregation": {
+    "type": "count",
+    "filter": { "statusCode": 200 }
+  }
+}
+```
+
+Sum tokens:
+
+```json
+{
+  "name": "tokens_total",
+  "aggregation": {
+    "type": "sum",
+    "property": "tokens"
+  }
+}
+```
+
+## List metrics
+
+```http
+GET /v1/metrics
+```
+
+Response: `{ "data": [ … ] }`.
+
+## Update a metric
+
+```http
+PATCH /v1/metrics/:id
+```
+
+Send only the fields to change.
+
+## Delete a metric
+
+```http
+DELETE /v1/metrics/:id
+```

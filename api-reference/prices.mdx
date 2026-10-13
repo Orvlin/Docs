@@ -1,0 +1,62 @@
+---
+title: 'Prices'
+description: 'Charge for a metric or a flat fee, using one of the pricing models'
+---
+
+A price says how much to charge. It refers to a metric (for usage-based charges) or to nothing (for flat fees). For the pricing models, see [Pricing models](/pricing-models).
+
+## Create a price
+
+```http
+POST /v1/prices
+```
+
+```json
+{
+  "name": "api_call_price",
+  "description": "Per API call",
+  "metricId": "01JX0F8K4W3Z9YQ6V7M2T5R8B1",
+  "config": {
+    "model": "unit",
+    "unitPrice": 0.001,
+    "currency": "USD"
+  },
+  "cadence": "monthly",
+  "timing": "in_arrears"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | The price's name. Plans refer to it. |
+| `config` | object | Yes | The pricing model and its settings. See [Pricing models](/pricing-models). |
+| `description` | string | No | What the price is for. |
+| `metricId` | string | No | The metric to charge for. Leave it empty for a flat fee. |
+| `cadence` | string | No | `monthly` (default), `quarterly`, `annual`, `one_time`, or `usage_based`. |
+| `timing` | string | No | `in_arrears` (default) charges at the end of the period. `in_advance` charges at the start. |
+
+A price with no `metricId` must use a flat-fee cadence. A usage-based price needs a metric.
+
+Responds `201 Created`.
+
+## List prices
+
+```http
+GET /v1/prices
+```
+
+Response: `{ "data": [ … ] }`.
+
+## Update a price
+
+```http
+PATCH /v1/prices/:id
+```
+
+Changing a price creates a new version. Subscriptions keep the version they started on until they are migrated. See [Subscriptions](/api-reference/subscriptions#change-a-plan).
+
+## Delete a price
+
+```http
+DELETE /v1/prices/:id
+```

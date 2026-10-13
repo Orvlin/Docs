@@ -1,0 +1,78 @@
+---
+title: 'API overview'
+description: 'Base URL, versioning, authentication, pagination, and how the API is organised'
+---
+
+The Orvlin API is a JSON API over HTTPS. Every endpoint lives under `/v1`.
+
+```
+https://api.orvlin.com/v1
+```
+
+## Making requests
+
+- Send and receive JSON. Set `Content-Type: application/json` on requests with a body.
+- Authenticate with an API key (see [Authentication](/api-reference/authentication)).
+- Dates and times are ISO 8601 strings, with a timezone offset or `Z`.
+- Money amounts are decimal numbers in the currency named on the object. Currencies are three-letter ISO codes, such as `USD`.
+- IDs are strings. Customer IDs are yours or `cust_…`. Other objects get ULID-style IDs.
+
+## Pagination
+
+Lists return `{ "data": [ … ] }`. Some also accept paging parameters:
+
+| Endpoint | Parameters | Maximum page size |
+|---|---|---|
+| `GET /v1/customers` | `limit` (default 100), `offset` | Set by `limit` |
+| `GET /v1/invoices` | `page` (default 1), `page_size` (default 20) | 100 |
+
+Invoice lists also return a `pagination` object with `total`, `page`, and `pageSize`.
+
+## Idempotency
+
+Requests that create billable records take an idempotency key, so a retry can't create a duplicate:
+
+- Events: set `idempotencyKey` on each event.
+- Credit grants and purchases: set `idempotencyKey` in the body.
+
+Reusing a key returns the original result instead of creating a second record.
+
+## Errors and rate limits
+
+Errors return a JSON body with an `error` message. See [Errors](/api-reference/errors).
+
+Requests are rate limited. If you receive `429 Too Many Requests`, wait and retry with exponential backoff.
+
+## Usage
+
+Usage summaries and time series for the dashboard are available from:
+
+- `GET /v1/usage/summary`: totals across the workspace.
+- `GET /v1/usage/customers/:customerId/timeseries`: consumption for one customer over time.
+
+## Health
+
+| Endpoint | Description |
+|---|---|
+| `GET /v1/health` | Confirms the API is running. |
+| `GET /v1/health/ready` | Confirms the API is ready to serve requests. |
+
+## Resource index
+
+| Area | Resource | Reference |
+|---|---|---|
+| Access | Authentication, sessions | [Authentication](/api-reference/authentication) |
+| Access | API keys | [API keys](/api-reference/api-keys) |
+| Usage | Events | [Events](/api-reference/events) |
+| Catalog | Metrics | [Metrics](/api-reference/metrics) |
+| Catalog | Prices | [Prices](/api-reference/prices) |
+| Catalog | Plans | [Plans](/api-reference/plans) |
+| Customers | Customers, entitlements | [Customers](/api-reference/customers) |
+| Billing | Subscriptions | [Subscriptions](/api-reference/subscriptions) |
+| Billing | Invoices, payment retries | [Invoices](/api-reference/invoices) |
+| Billing | Licenses | [Licenses](/api-reference/licenses) |
+| Credits | Credit types, wallets | [Credits](/api-reference/credits) |
+| Integrations | Webhooks | [Webhooks](/api-reference/webhooks) |
+| Customer-facing | Customer portal | [Customer portal](/api-reference/portal) |
+
+Some endpoints are for the dashboard and aren't covered here. They include coupons, contracts, dunning, forecasts, and revenue recognition, which are documented in the guides where they apply.

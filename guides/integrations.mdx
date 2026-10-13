@@ -1,0 +1,103 @@
+---
+title: 'Integrations'
+description: 'Connect tax, CRM, accounting, data warehouses, and cloud marketplaces'
+---
+
+Integrations connect Orvlin to the systems around billing: tax engines, your CRM, your accounting books, your data warehouse, and cloud marketplaces.
+
+Each workspace connects its own accounts from the **Integrations** page. Credentials are stored encrypted, and a connection only shows as **Connected** after Orvlin has verified it with the provider.
+
+## Tax
+
+**Avalara AvaTax** and **Anrok** calculate sales tax on invoices.
+
+- Avalara needs an AvaTax account, a license key, and a company code.
+- Anrok needs an API key. Optionally, pick the Anrok product that carries your tax category.
+
+Issued invoices are committed to the provider, so they appear in your tax returns. Voided invoices are voided there too. Previews use an uncommitted quote and create no liability.
+
+Customers need a country on their billing address for tax to be calculated. Customers without one are skipped with a warning rather than taxed as if they were somewhere else.
+
+<Note>
+The default Avalara tax code is `SW054000`, which is commonly used for SaaS. Avalara distinguishes codes by delivery method and by business or personal use. Confirm the right code with your tax advisor.
+</Note>
+
+Nexus, exemption certificates, and tax filing stay in Avalara's or Anrok's own dashboards. Orvlin sends them transactions; it does not replace their compliance tooling.
+
+## CRM
+
+Customers sync first, then their invoices. Syncs are idempotent: unchanged records are skipped and changed ones are updated in place. Failures are retried with backoff and listed at `GET /v1/integrations/failures`.
+
+| Provider | Customers become | Invoices become | You provide |
+|---|---|---|---|
+| HubSpot | Companies | Deals, associated to the company | A private app with `crm.objects.companies.write` and `crm.objects.deals.write`. |
+| Salesforce | Accounts | Opportunities | A Connected App with the Client Credentials flow, a run-as user, and your My Domain host. |
+| NetSuite | Customers | Invoices | Token-based authentication, an integration record, an access token, and one non-inventory item for invoice lines. |
+
+## Accounting
+
+**QuickBooks Online** and **Xero** sync customers, invoices, payments, and voids. Connect with the **Connect** button; you sign in to the vendor and approve access.
+
+What syncs, every 10 minutes:
+
+- **Customers** become QuickBooks Customers or Xero Contacts. An existing customer or contact with the same name is linked, not duplicated.
+- **Invoices** (open, paid, and void, never drafts) are numbered with the Orvlin invoice number. Tax Orvlin calculated is sent as its own line.
+- **Payments** are recorded against the invoice when it is paid in Orvlin.
+- **Voids** are voided in the books too.
+
+After connecting, set the connection's settings:
+
+- **QuickBooks:** the item that invoice lines post to. Until it is set, only customers sync.
+- **Xero:** the revenue account code (default 200), and the bank account code that payments are recorded against.
+
+Sync is one-way, from Orvlin to your books. A payment recorded directly in QuickBooks or Xero does not mark the Orvlin invoice paid.
+
+## Data warehouse
+
+Invoices, line items, customers, subscriptions, credits, and usage events are exported every 10 minutes, or on demand with **Export now**.
+
+| Destination | What you provide |
+|---|---|
+| Amazon S3 (or any S3-compatible store) | A bucket, a region, and a key with `s3:PutObject`. Optional prefix and endpoint. |
+| BigQuery | A project, a dataset, and a service account with BigQuery Data Editor. |
+| Snowflake | An account, a user with a registered RSA key, a warehouse, a database, and a schema. |
+
+Every exported row has `id`, `account_id`, `exported_at`, and `data` (the full record). Exports are append-only, so take the latest row per `id`:
+
+```sql
+-- BigQuery
+SELECT * EXCEPT (rn) FROM (
+  SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY exported_at DESC) AS rn
+  FROM billing.orvlin_invoices
+) WHERE rn = 1;
+
+-- Snowflake
+SELECT * FROM ORVLIN_INVOICES
+QUALIFY ROW_NUMBER() OVER (PARTITION BY ID ORDER BY EXPORTED_AT DESC) = 1;
+```
+
+Each run exports up to 5,000 rows per dataset and continues on the next run, so the first export of a large account takes several runs. Check progress on the card, or at `GET /v1/integrations/warehouse/status`.
+
+## Cloud marketplaces
+
+Connect AWS Marketplace, Azure Marketplace, or Google Cloud Marketplace to sell through a marketplace listing. Each one needs:
+
+1. **A listing** with metered dimensions. Note the dimension names.
+2. **A dimension mapping** from your Orvlin metric names to the marketplace's dimensions, such as `{"api_calls_total": "api_calls"}`.
+3. **A fulfilment step.** When a buyer subscribes, the marketplace sends them to your sign-up URL with a token. Forward that token to Orvlin so it can link or create the customer.
+
+| Marketplace | Fulfilment endpoint | Notes |
+|---|---|---|
+| AWS | `POST /v1/marketplace/aws/resolve` with `registrationToken` | Orvlin resolves the buyer with AWS. |
+| Azure | `POST /v1/marketplace/azure/resolve` with `token` | Resolving also activates the subscription. Microsoft does not bill until activation. |
+| Google Cloud | `POST /v1/marketplace/gcp/signup` with `token` and `audience` | Once the entitlement is active, attach its usage reporting ID with `POST /v1/marketplace/gcp/entitlement`. |
+
+Usage is reported to each marketplace once per hour. Events that arrive after an hour has been reported are not re-reported, because marketplaces reject duplicate records for a reported window.
+
+Google's entitlement changes (plan changes and cancellations) arrive on Google's Pub/Sub topic. Subscribe to it and call the entitlement endpoint as needed.
+
+## Troubleshooting
+
+- **Connected, but nothing syncs:** check the card's error message, then press **Reconnect** if the provider revoked access.
+- **Failed records:** list them at `GET /v1/integrations/failures` and retry with `POST /v1/integrations/failures/retry`.
+- **Tax is missing on an invoice:** check that the customer has a country on their billing address.

@@ -1,0 +1,40 @@
+---
+title: 'Errors'
+description: 'Error responses and how to handle them'
+---
+
+When a request fails, Orvlin returns a non-2xx status code and a JSON body.
+
+```json
+{
+  "error": "Invalid input",
+  "details": [
+    { "path": ["name"], "message": "Required" }
+  ]
+}
+```
+
+- `error` is a message for developers. Don't show it to end users.
+- `details` is present for validation failures. It lists each problem with its field path.
+
+## Status codes
+
+| Status | Meaning | What to do |
+|---|---|---|
+| `400 Bad Request` | The request is invalid. For example, a required field is missing or a value is out of range. | Fix the request. Don't retry it unchanged. |
+| `401 Unauthorized` | The API key is missing, invalid, or revoked. | Check the key. See [Authentication](/api-reference/authentication). |
+| `403 Forbidden` | The key is valid but its role can't do this. | Use a key with a higher role, or check whether the action is allowed for your plan. |
+| `404 Not Found` | The resource doesn't exist in your workspace. | Check the ID. Resources in other workspaces also return `404`. |
+| `429 Too Many Requests` | You've sent too many requests. | Wait, then retry with exponential backoff. |
+| `500 Internal Server Error` | Something went wrong on our side. The message is hidden. | Retry with backoff. If it continues, contact support with the request time. |
+| `503 Service Unavailable` | Orvlin is temporarily unavailable, for example during maintenance. | Retry after a few minutes. Responses with `"code": "maintenance"` mean changes are paused. |
+
+## Retrying safely
+
+Retry `429`, `500`, and `503` responses with exponential backoff and a random jitter. Don't retry `400`, `401`, `403`, or `404`; fix the request first.
+
+When you retry a request that creates a record, send the same idempotency key so the record isn't created twice. See [Idempotency](/api-reference/overview#idempotency).
+
+## Handling errors in the SDKs
+
+The [Node.js](/sdks/node#errors) and [Python](/sdks/python#errors) SDKs raise an error with the HTTP status on it. Check the status to decide whether to retry.

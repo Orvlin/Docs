@@ -1,0 +1,147 @@
+---
+title: 'Webhooks'
+description: 'Receive signed notifications when invoices, subscriptions, and credits change'
+---
+
+Webhooks send you a message when something happens in your workspace, such as an invoice being paid or a subscription changing. Use them to update your own systems without polling the API.
+
+## Register an endpoint
+
+```http
+POST /v1/webhooks
+```
+
+Managing webhooks requires a signed-in user session.
+
+```json
+{
+  "url": "https://example.com/hooks/orvlin",
+  "events": ["invoice.paid", "subscription.created"]
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `url` | string | Yes | Where to send events. Must use `https` in production. |
+| `events` | string[] | No | The events to receive. Defaults to `invoice.paid` and `subscription.created`. |
+
+Responds `201 Created` with the webhook, including its `secret`. The secret starts with `whsec_` and is used to verify signatures. Store it securely.
+
+## Manage endpoints
+
+| Method and path | Description |
+|---|---|
+| `GET /v1/webhooks` | List endpoints. |
+| `PATCH /v1/webhooks/:id` | Turn an endpoint on or off with `{ "enabled": false }`. |
+| `DELETE /v1/webhooks/:id` | Delete an endpoint. |
+| `POST /v1/webhooks/:id/test` | Send a test event to the endpoint. |
+| `GET /v1/webhooks/:id/deliveries?limit=50` | Recent deliveries, with their status. |
+
+## Events
+
+These are some of the events you can subscribe to:
+
+| Event | Sent when |
+|---|---|
+| `invoice.created` | An invoice is issued. |
+| `invoice.paid` | An invoice is paid. |
+| `invoice.voided` | An invoice is voided. |
+| `invoice.credit_note` | A credit note is issued. |
+| `invoice.payment_failed` | A charge fails. |
+| `invoice.payment_action_required` | The customer must act to complete payment. |
+| `invoice.payment_recovered` | A retry succeeds. |
+| `invoice.marked_uncollectible` | Retries are exhausted. |
+| `subscription.created` | A subscription starts. |
+| `subscription.cancel` | A subscription is canceled. |
+| `subscription.plan_change` | A subscription moves to another plan. |
+| `credit.grant` | Credits are granted to a customer. |
+| `usage.limit` | A customer reaches a usage limit. |
+
+## Payload
+
+Every delivery is a `POST` with a JSON body:
+
+```json
+{
+  "id": "evt_01JX…",
+  "event": "invoice.paid",
+  "timestamp": "2026-10-12T09:30:00.000Z",
+  "data": {
+    "id": "inv_01JX…",
+    "customerId": "cust_acme",
+    "total": 42.5,
+    "currency": "USD"
+  }
+}
+```
+
+`id` stays the same across retries, so use it to ignore duplicates.
+
+## Headers
+
+| Header | Value |
+|---|---|
+| `X-Orvlin-Event` | The event name, such as `invoice.paid`. |
+| `X-Orvlin-Timestamp` | When the delivery was signed, in ISO 8601. |
+| `X-Orvlin-Signature` | The signature, as a hex string. |
+| `User-Agent` | `Orvlin-Webhook/1.0`. |
+
+## Verify signatures
+
+The signature is an HMAC-SHA256 of the timestamp, a dot, and the raw request body, using the endpoint's secret:
+
+```
+signature = HMAC_SHA256(secret, X-Orvlin-Timestamp + "." + raw_body)
+```
+
+Compare your computed value with `X-Orvlin-Signature` using a constant-time comparison. Verify the signature against the raw body before parsing the JSON.
+
+<CodeGroup>
+
+```ts Node.js
+import crypto from 'node:crypto';
+
+export function verifyOrvlinWebhook(rawBody: string, headers: Record<string, string>, secret: string) {
+  const timestamp = headers['x-orvlin-timestamp'];
+  const received = headers['x-orvlin-signature'];
+  if (!timestamp || !received) return false;
+
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(`${timestamp}.${rawBody}`)
+    .digest('hex');
+
+  const a = Buffer.from(expected);
+  const b = Buffer.from(received);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+```
+
+```python Python
+import hmac
+import hashlib
+
+def verify_orvlin_webhook(raw_body: bytes, headers: dict, secret: str) -> bool:
+    timestamp = headers.get("x-orvlin-timestamp")
+    received = headers.get("x-orvlin-signature")
+    if not timestamp or not received:
+        return False
+
+    signed = f"{timestamp}.".encode() + raw_body
+    expected = hmac.new(secret.encode(), signed, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, received)
+```
+
+</CodeGroup>
+
+Also check that `X-Orvlin-Timestamp` is recent, for example within five minutes, so a captured delivery can't be replayed later. Orvlin signs the timestamp, but your endpoint has to check it.
+
+## Responding
+
+Return any `2xx` status within 8 seconds to acknowledge the delivery. Do the slow work after you respond, for example by queuing a job.
+
+## Retries
+
+If your endpoint doesn't return `2xx`, Orvlin retries with increasing delays, for about a day. After the last attempt, the delivery is marked as failed. Each attempt is listed under `GET /v1/webhooks/:id/deliveries`.
+
+If your endpoint returns errors repeatedly, fix it and then re-enable it with `PATCH /v1/webhooks/:id`.

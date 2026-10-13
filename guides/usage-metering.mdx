@@ -1,0 +1,69 @@
+---
+title: 'Usage metering'
+description: 'Send events reliably and design them so metrics stay accurate'
+---
+
+Usage metering is how your product tells Orvlin what customers did. Send one event per billable action, with enough properties to price it.
+
+## Send events
+
+`POST /v1/events` accepts one event, an array of events, or an object with an `events` array:
+
+```bash
+curl -X POST "$ORVLIN_API/v1/events" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "events": [
+      {
+        "customerId": "cust_acme",
+        "eventName": "api_call",
+        "timestamp": "2026-10-12T09:30:00Z",
+        "idempotencyKey": "req_8f2c1a",
+        "properties": { "endpoint": "/v1/search", "method": "POST", "statusCode": 200, "latencyMs": 142 }
+      },
+      {
+        "customerId": "cust_acme",
+        "eventName": "api_call",
+        "idempotencyKey": "req_8f2c1b",
+        "properties": { "endpoint": "/v1/search", "method": "GET", "statusCode": 200, "latencyMs": 88 }
+      }
+    ]
+  }'
+```
+
+The response lists the IDs of accepted events and any that were rejected, with the reason.
+
+## Use idempotency keys
+
+Networks fail and workers retry. Give every billable action a stable `idempotencyKey`, such as the request ID or the ID of the job that produced it. If the same key arrives twice, Orvlin counts it once.
+
+<Tip>
+Derive the key from the thing that happened, not from the time you sent the event. A retry should produce the same key.
+</Tip>
+
+## Timestamps
+
+`timestamp` is an ISO 8601 string. If you omit it, Orvlin uses the time of ingestion. Set it yourself when you send events in batches later, so they land in the correct billing period.
+
+## Design event names and properties
+
+- **Name events for actions**, such as `api_call`, `image_generated`, or `token_usage`. Don't name them after prices.
+- **Put the numbers you bill on in `properties`**, such as `tokens`, `bytes`, or `seconds`. A `sum` or `max` metric reads these.
+- **Keep properties flat and typed.** Use the same name and type for the same field across every event.
+- **Use a `cost` or `amount` property only when you know the cost.** Orvlin also attributes it to budgets that cover the event.
+
+## Batching
+
+Batch events to reduce request overhead. The Node and Python SDKs queue and send events for you. See [Node SDK](/sdks/node#track-usage).
+
+## Verify what was counted
+
+List recent events for a customer and event name:
+
+```bash
+curl "$ORVLIN_API/v1/events?customer_id=cust_acme&event_name=api_call&limit=20" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY"
+```
+
+Check a customer's consumption against a metric with the [usage endpoints](/api-reference/overview#usage).

@@ -1,0 +1,154 @@
+---
+title: 'Quickstart'
+description: 'Create a customer, define a price, and send your first usage event'
+---
+
+This walkthrough takes you from an empty workspace to a subscribed customer whose usage is being metered. You need an Orvlin workspace and a user who can create API keys.
+
+<Steps>
+  <Step title="Create an API key">
+    In the dashboard, create an API key. Choose the `developer` role if the key will send usage, or `viewer` if it only checks entitlements. See [API keys](/api-reference/api-keys#roles) for every role.
+
+    The secret is shown once. Store it in your secret manager.
+
+    ```bash
+    export ORVLIN_API_KEY="orv_xxxxxxxx_your_secret"
+    export ORVLIN_API="https://api.orvlin.com"
+    ```
+
+    Every request below sends the key as `Authorization: Bearer $ORVLIN_API_KEY`.
+  </Step>
+
+  <Step title="Create a metric">
+    A metric counts or sums matching events over a billing period. This one counts every `api_call` event.
+
+    ```bash
+    curl -X POST "$ORVLIN_API/v1/metrics" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "api_calls_total",
+        "description": "Total API calls",
+        "aggregation": { "type": "count", "filter": {}, "groupBy": [] }
+      }'
+    ```
+
+    Note the `id` in the response. You need it for the price.
+  </Step>
+
+  <Step title="Create a price">
+    A price charges for a metric. This one is a unit price of $0.001 per call, billed monthly in arrears.
+
+    ```bash
+    curl -X POST "$ORVLIN_API/v1/prices" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "api_call_price",
+        "metricId": "<metric id from step 2>",
+        "config": { "model": "unit", "unitPrice": 0.001, "currency": "USD" },
+        "cadence": "monthly",
+        "timing": "in_arrears"
+      }'
+    ```
+
+    See [Pricing models](/pricing-models) for the other ways to charge.
+  </Step>
+
+  <Step title="Create a plan">
+    A plan bundles prices that customers subscribe to.
+
+    ```bash
+    curl -X POST "$ORVLIN_API/v1/plans" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "starter",
+        "description": "Starter plan",
+        "prices": [{ "priceId": "<price id from step 3>" }]
+      }'
+    ```
+
+    Note the plan `id`.
+  </Step>
+
+  <Step title="Create a customer">
+    ```bash
+    curl -X POST "$ORVLIN_API/v1/customers" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "id": "cust_acme",
+        "name": "Acme Corp",
+        "email": "billing@acme.example",
+        "currency": "USD",
+        "metadata": { "region": "eu-west" }
+      }'
+    ```
+
+    If you omit `id`, Orvlin generates one (`cust_…`). Supplying your own ID lets you use the same identifier in your application.
+  </Step>
+
+  <Step title="Subscribe the customer to the plan">
+    ```bash
+    curl -X POST "$ORVLIN_API/v1/subscriptions" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "customerId": "cust_acme",
+        "planId": "<plan id from step 4>"
+      }'
+    ```
+
+    Subscriptions take the plan's `planId`, not its name.
+  </Step>
+
+  <Step title="Send a usage event">
+    ```bash
+    curl -X POST "$ORVLIN_API/v1/events" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "customerId": "cust_acme",
+        "eventName": "api_call",
+        "idempotencyKey": "req_8f2c1a",
+        "properties": {
+          "endpoint": "/v1/search",
+          "method": "POST",
+          "statusCode": 200,
+          "latencyMs": 142
+        }
+      }'
+    ```
+
+    The response lists the accepted event IDs. Re-sending the same `idempotencyKey` does not count the call twice.
+  </Step>
+</Steps>
+
+## Check what you've done
+
+Ask Orvlin what the customer is entitled to:
+
+```bash
+curl "$ORVLIN_API/v1/customers/cust_acme/entitlements" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY"
+```
+
+The usage you sent shows up in the customer's consumption. In production, call the SDK instead of raw HTTP. It caches answers so your request path never waits on the network. See [Node SDK](/sdks/node).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Usage metering" icon="gauge" href="/guides/usage-metering">
+    Batch events, choose properties, and design event names.
+  </Card>
+  <Card title="Entitlements" icon="shield-check" href="/guides/entitlements">
+    Gate features in your application.
+  </Card>
+  <Card title="Webhooks" icon="bell" href="/api-reference/webhooks">
+    Get notified when invoices are paid or subscriptions change.
+  </Card>
+  <Card title="Define pricing as code" icon="file-code" href="/pricing-manifest">
+    Keep your metrics, prices, and plans in a `pricing.yaml` file.
+  </Card>
+</CardGroup>

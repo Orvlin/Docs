@@ -1,0 +1,62 @@
+---
+title: 'Plans'
+description: 'Bundle prices into plans that customers subscribe to, and publish new versions'
+---
+
+A plan is a named bundle of prices. Customers subscribe to plans, not to individual prices.
+
+## Create a plan
+
+```http
+POST /v1/plans
+```
+
+```json
+{
+  "name": "starter",
+  "description": "Starter plan",
+  "prices": [
+    { "priceId": "01JX0F8K4W3Z9YQ6V7M2T5R8B1" }
+  ]
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | Yes | The plan's name. |
+| `prices` | array | Yes | The prices in the plan. Each entry is an object with a `priceId`, or a bare price ID. |
+| `description` | string | No | What the plan is for. |
+
+Every price must exist in your workspace. Responds `201 Created`.
+
+## List plans
+
+```http
+GET /v1/plans
+```
+
+Response: `{ "data": [ … ] }`.
+
+## Update a plan
+
+```http
+PATCH /v1/plans/:id
+```
+
+A change creates a new version of the plan. Existing subscriptions keep their version until they are migrated.
+
+## Versions
+
+| Method and path | Description |
+|---|---|
+| `GET /v1/plans/:id/versions` | List the plan's versions. |
+| `POST /v1/plans/:id/publish` | Publish the current draft so new subscriptions can use it. |
+| `POST /v1/plans/:id/versions/:version/restore` | Make an earlier version current again. |
+
+Publishing makes a version available for new subscriptions.
+
+## Delete a plan
+
+```http
+DELETE /v1/plans/:id
+```

@@ -1,0 +1,88 @@
+---
+title: 'Pricing as code'
+description: 'Declare metrics, prices, and plans in a pricing.yaml file'
+---
+
+You can define your catalog in a `pricing.yaml` file at the root of your project and keep it in git with the rest of your code. Orvlin applies the manifest to your account when the service starts. The deploy is idempotent: restarts and redeploys do not duplicate plans, prices, or metrics.
+
+Use the manifest for the catalog. Use the API for customers, subscriptions, and usage.
+
+## Structure
+
+The file lists `resources`. Each resource has a `kind`:
+
+| Kind | Declares |
+|---|---|
+| `Event` | The shape of an event: its name and expected properties. |
+| `Metric` | How events are aggregated. |
+| `Price` | How a metric (or a flat fee) is charged. |
+| `Plan` | A bundle of prices. |
+
+## Example
+
+```yaml
+version: "1.0"
+accountId: "00000000-0000-0000-0000-000000000000"
+
+resources:
+  # 1. The event your application sends
+  - kind: Event
+    name: api_call
+    eventName: api_call
+    description: API call event
+    properties:
+      endpoint: string
+      method: string
+      statusCode: number
+      latencyMs: number
+    requiredProperties:
+      - endpoint
+      - method
+
+  # 2. Aggregate the events into a metric
+  - kind: Metric
+    name: api_calls_total
+    description: Total API calls
+    aggregation:
+      type: count
+      filter: {}
+      groupBy: []
+    eventNames:
+      - api_call
+
+  # 3. Charge for the metric
+  - kind: Price
+    name: api_call_price
+    description: Per API call pricing
+    metric: api_calls_total
+    config:
+      model: unit
+      unitPrice: 0.001
+      currency: USD
+    cadence: monthly
+    timing: in_arrears
+
+  # 4. Bundle the price into a plan
+  - kind: Plan
+    name: starter
+    description: Starter plan
+    prices:
+      - price: api_call_price
+    isActive: true
+```
+
+Each `Price` references a `Metric` by name, and each `Plan` references `Price` resources by name. Keep names stable: they are how resources are matched between deploys.
+
+## Local development
+
+Run the development server with your manifest to test it locally:
+
+```bash
+orvlin dev --manifest pricing.yaml
+```
+
+See the [CLI reference](/sdks/cli) for the other commands.
+
+## Changing prices
+
+Editing a price or plan in the manifest creates a new version. Existing subscriptions keep the version they started on. To move customers to the new terms, use a price migration or a subscription migration, as described in [Subscriptions](/api-reference/subscriptions).

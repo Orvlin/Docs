@@ -1,0 +1,56 @@
+---
+title: 'Licenses'
+description: 'Allocate and deactivate per-seat licenses for customers'
+---
+
+Licenses are seats a customer holds under a `license` price. Allocate one for each seat you sell, and deactivate it when the seat is freed.
+
+## Allocate a license
+
+```http
+POST /v1/licenses
+```
+
+```json
+{
+  "customerId": "cust_acme",
+  "licenseTypeId": "seats"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `customerId` | string | Yes | The customer who holds the seat. |
+| `licenseTypeId` | string | Yes | The license type, matching the `licenseTypeId` of a `license` price, such as `seats`. |
+
+`snake_case` (`customer_id`, `license_type_id`) is also accepted.
+
+Response:
+
+```json
+{
+  "id": "lic_01JX…",
+  "accountId": "acc_…",
+  "customerId": "cust_acme",
+  "licenseTypeId": "seats",
+  "status": "active",
+  "startedAt": "2026-10-12T09:30:00.000Z"
+}
+```
+
+## Deactivate a license
+
+Frees the seat. The customer stops being billed for it from the next period.
+
+```http
+POST /v1/licenses/:id/deactivate
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "deactivatedAt": "2026-10-12T10:00:00.000Z"
+}
+```

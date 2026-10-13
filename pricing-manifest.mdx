@@ -3,7 +3,7 @@ title: 'Pricing as code'
 description: 'Declare metrics, prices, and plans in a pricing.yaml file'
 ---
 
-You can define your catalog in a `pricing.yaml` file at the root of your project and keep it in git with the rest of your code. Orvlin applies the manifest to your account when the service starts. The deploy is idempotent: restarts and redeploys do not duplicate plans, prices, or metrics.
+You can define your catalog in a `pricing.yaml` file and keep it in version control with the rest of your code. Deploy it to your workspace with the [CLI](/sdks/cli). Deploys are idempotent: running a deploy again does not duplicate plans, prices, or metrics.
 
 Use the manifest for the catalog. Use the API for customers, subscriptions, and usage.
 
@@ -73,15 +73,21 @@ resources:
 
 Each `Price` references a `Metric` by name, and each `Plan` references `Price` resources by name. Keep names stable: they are how resources are matched between deploys.
 
-## Local development
+## Validate before you deploy
 
-Run the development server with your manifest to test it locally:
+Check the manifest without changing anything:
 
 ```bash
-orvlin dev --manifest pricing.yaml
+orvlin deploy --manifest pricing.yaml --validate-only
 ```
 
-See the [CLI reference](/sdks/cli) for the other commands.
+Then preview the changes against your workspace:
+
+```bash
+orvlin deploy --manifest pricing.yaml --environment sandbox --dry-run
+```
+
+See the [CLI reference](/sdks/cli) for every option.
 
 ## Changing prices
 

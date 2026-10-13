@@ -105,12 +105,6 @@
           "api-reference/approvals",
           "api-reference/audit-logs"
         ]
-      },
-      {
-        "group": "Contributing",
-        "pages": [
-          "development"
-        ]
       }
     ]
   }

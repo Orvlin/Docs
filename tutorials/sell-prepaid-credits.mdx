@@ -1,0 +1,176 @@
+---
+title: 'Sell prepaid credits'
+description: 'Sell credit packs, check balances before each AI generation, and top up automatically'
+---
+
+<Info>
+**Time:** about 30 minutes · **Level:** intermediate · **You'll build:** a credit-based image generator where customers buy credits, each generation draws them down, and balances top up automatically.
+</Info>
+
+## Scenario
+
+An AI image app sells credits. A generation costs one credit. Customers buy packs, a starter grant covers their first generations, and customers who opt in are topped up automatically when they run low.
+
+## Prerequisites
+
+- A sandbox workspace with a `developer` key and a customer, such as `cust_tutorial_1` from [Meter your first API](/tutorials/meter-your-first-api).
+- Node.js 20 or later with `@orvlin/node` installed.
+
+<Steps>
+  <Step title="Create the credit type">
+    A credit type defines what the credits are for, and how the balance behaves at zero. Here `block` stops generations when the balance runs out, instead of billing overage.
+
+    ```bash
+    curl -s -X POST "$ORVLIN_API/v1/credit-types" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "key": "image_credits",
+        "name": "Image credits",
+        "unitLabel": "credit",
+        "overage": "block"
+      }'
+    ```
+
+    <Note>
+    Check the response for the credit type's `key` and any field names your workspace returns. Use the `key` value in every later call.
+    </Note>
+  </Step>
+
+  <Step title="Give new customers a starter grant">
+    A grant gives credits for free. Use `idempotencyKey` so a retried signup doesn't grant twice.
+
+    ```bash
+    curl -s -X POST "$ORVLIN_API/v1/customers/cust_tutorial_1/wallets/image_credits/grants" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "amount": 10,
+        "source": "promotional",
+        "description": "Welcome credits",
+        "idempotencyKey": "welcome_cust_tutorial_1"
+      }' | jq
+    ```
+
+    Run it a second time. The response shows `created: false`, and the balance stays at 10.
+  </Step>
+
+  <Step title="Let customers buy a pack">
+    Selling a pack charges the card on file. Use the same idempotency approach, keyed to your order ID.
+
+    ```bash
+    curl -s -X POST "$ORVLIN_API/v1/customers/cust_tutorial_1/wallets/image_credits/purchases" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "credits": 100,
+        "collection": "charge",
+        "description": "100-credit pack",
+        "idempotencyKey": "order_2026_10_13_0001"
+      }' | jq '{status: .block.status, invoice: .invoice.id}'
+    ```
+
+    A purchase starts as `pending_payment` and becomes `active` once paid. Until then the credits aren't spendable.
+
+    <Tip>
+    Use `"collection": "send_invoice"` for enterprise customers who pay by bank transfer. They get an emailed invoice instead of a card charge.
+    </Tip>
+  </Step>
+
+  <Step title="Check the balance before each generation">
+    Before you call the image model, check that the customer can pay for it. The check doesn't spend anything.
+
+    ```js
+    // generate.js
+    import { Orvlin } from '@orvlin/node';
+
+    const orvlin = new Orvlin({
+      apiKey: process.env.ORVLIN_API_KEY,
+      baseUrl: process.env.ORVLIN_API,
+    });
+
+    export async function generateImage(customerId, prompt) {
+      const { allowed, balance } = await orvlin.checkCredits(customerId, {
+        creditType: 'image_credits',
+        quantity: 1,
+      });
+      if (!allowed) {
+        const err = new Error('Out of credits');
+        err.status = 402;
+        err.balance = balance;
+        throw err;
+      }
+
+      const image = await callImageModel(prompt); // your model call
+
+      // Usage reported with track() is drawn from the wallet as it arrives.
+      await orvlin.track({
+        customerId,
+        eventName: 'image_generated',
+        idempotencyKey: image.requestId,
+        properties: { creditsUsed: 1 },
+      });
+
+      return image;
+    }
+
+    async function callImageModel(prompt) {
+      return { requestId: crypto.randomUUID(), url: 'https://example.com/image.png', prompt };
+    }
+    ```
+
+    The check and the track are separate on purpose. The check decides whether to start the work. The track records the spend after it happens.
+
+    <Warning>
+    Usage reported with `track` is drawn from the customer's wallet as it arrives. Before you launch, generate a few test images in the sandbox and confirm the balance on the [ledger](#show-the-balance-and-history) goes down.
+    </Warning>
+  </Step>
+
+  <Step title="Turn on automatic top-up">
+    Top up when the balance falls to 2 credits, buying 50 credits at a time, at most 5 times a month.
+
+    ```bash
+    curl -s -X PUT "$ORVLIN_API/v1/customers/cust_tutorial_1/wallets/image_credits/auto-top-up" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "threshold": 2,
+        "credits": 50,
+        "maxPerMonth": 5,
+        "enabled": true
+      }' | jq
+    ```
+
+    The monthly cap stops a runaway loop from charging a customer repeatedly.
+  </Step>
+
+  <Step title="Show the balance and history">
+    ```bash
+    curl -s "$ORVLIN_API/v1/customers/cust_tutorial_1/wallets" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" | jq
+
+    curl -s "$ORVLIN_API/v1/customers/cust_tutorial_1/wallets/image_credits/ledger" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" | jq
+    ```
+
+    The ledger lists every grant, purchase, and draw-down. It's the first place to look when a customer asks why their balance changed.
+  </Step>
+</Steps>
+
+## Production checklist
+
+- Check credits before the expensive call, and track usage after it succeeds.
+- Use an `idempotencyKey` on every grant, purchase, and generation.
+- Set `overage: "block"` unless you want to bill customers for going over.
+- Surface `balance` in your UI, so customers know before they run out.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Prepaid credits reference" icon="coins" href="/guides/prepaid-credits">
+    Every field for grants, purchases, and auto top-up.
+  </Card>
+  <Card title="Receive webhooks securely" icon="bell" href="/tutorials/receive-webhooks-securely">
+    Get notified when a pack's invoice is paid.
+  </Card>
+</CardGroup>

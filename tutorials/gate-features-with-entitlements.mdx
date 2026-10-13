@@ -1,0 +1,174 @@
+---
+title: 'Gate features with entitlements'
+description: 'Block requests for customers who are out of allowance, with a fast cached check'
+---
+
+<Info>
+**Time:** about 25 minutes · **Level:** intermediate · **You'll build:** an Express middleware that checks entitlements before each request and records usage only for allowed requests.
+</Info>
+
+## Scenario
+
+Your plans include a monthly allowance of search requests. When a customer uses it up, the API should return `402 Payment Required` with a link to upgrade, without slowing down the requests that are allowed.
+
+This tutorial uses the setup from [Meter your first API](/tutorials/meter-your-first-api). Complete that first.
+
+## Prerequisites
+
+- A `developer` API key for the sandbox workspace, and the `cust_tutorial_1` customer.
+- Node.js 20 or later.
+
+```bash
+mkdir gated-api && cd gated-api
+npm init -y
+npm install express @orvlin/node
+export ORVLIN_API="https://api.orvlin.com"
+export ORVLIN_API_KEY="orv_xxxxxxxx_your_secret"
+```
+
+<Steps>
+  <Step title="Create the Orvlin client once, at startup">
+    Create one client and reuse it. The client keeps the entitlement cache, so each request doesn't open a new connection or wait for the network.
+
+    ```js
+    // orvlin.js
+    import { Orvlin } from '@orvlin/node';
+
+    export const orvlin = new Orvlin({
+      apiKey: process.env.ORVLIN_API_KEY,
+      baseUrl: process.env.ORVLIN_API,
+      cacheTtlMs: 30_000,    // treat a checked answer as fresh for 30 seconds
+      staleTtlMs: 86_400_000, // use a stale answer for up to 24 hours if Orvlin is unreachable
+      timeoutMs: 2_000,       // don't keep a user waiting on a slow check
+      onUnavailable: 'deny',  // unknown customers are refused if Orvlin is down
+    });
+    ```
+
+    <Note>
+    `onUnavailable: 'deny'` is the safe default. A customer you've seen recently still gets through on a stale answer. A customer the cache has never seen is refused until Orvlin responds.
+    </Note>
+  </Step>
+
+  <Step title="Write the middleware">
+    The middleware reads the customer from a request header, checks the feature, and either passes the request on or returns `402`.
+
+    ```js
+    // gate.js
+    import { orvlin } from './orvlin.js';
+
+    export function requireAllowance(feature) {
+      return async (req, res, next) => {
+        const customerId = req.header('x-customer-id');
+        if (!customerId) return res.status(401).json({ error: 'Missing customer' });
+
+        try {
+          const check = await orvlin.check(customerId, feature, { amount: 1 });
+          if (!check.hasAccess) {
+            return res.status(402).json({
+              error: 'Allowance used up',
+              upgradeUrl: 'https://app.example.com/billing',
+            });
+          }
+          req.entitlement = check;
+          next();
+        } catch (err) {
+          // Only reached if the SDK itself fails, which is rare.
+          next(err);
+        }
+      };
+    }
+    ```
+
+    The `amount` is how much this request uses. Use `1` for one request, or the real cost for variable-cost requests.
+  </Step>
+
+  <Step title="Record usage only for allowed requests">
+    Record the event after the work succeeds. A failed request shouldn't count toward the allowance.
+
+    ```js
+    // server.js
+    import express from 'express';
+    import { orvlin } from './orvlin.js';
+    import { requireAllowance } from './gate.js';
+
+    const app = express();
+
+    app.get('/search', requireAllowance('search_requests'), async (req, res) => {
+      const customerId = req.header('x-customer-id');
+      const requestId = req.header('x-request-id') ?? crypto.randomUUID();
+
+      const results = [{ title: 'Example result' }]; // your real search goes here
+
+      // Count the request after it succeeds, keyed by the request ID.
+      await orvlin.track({
+        customerId,
+        eventName: 'search_request',
+        idempotencyKey: requestId,
+        properties: { statusCode: 200 },
+      });
+
+      res.json({ results, remaining: req.entitlement.remaining });
+    });
+
+    app.listen(3000, () => console.log('listening on :3000'));
+    ```
+
+    <Warning>
+    `track` is awaited here so a failed usage write is visible. In production, you may prefer to queue it and not block the response. If you queue it, keep the same `idempotencyKey`.
+    </Warning>
+  </Step>
+
+  <Step title="Test the limit">
+    Start the server:
+
+    ```bash
+    node server.js
+    ```
+
+    In another terminal, call the endpoint:
+
+    ```bash
+    curl -i http://localhost:3000/search -H "x-customer-id: cust_tutorial_1"
+    ```
+
+    You should get `200 OK` and a `remaining` count.
+
+    To test the `402` path, use a customer whose allowance is used up. Check the allowance for that customer and feature first with `GET /v1/customers/:id/entitlements/:featureName`, then send a request as that customer. The SDK caches answers for 30 seconds, so wait for the cache to expire or call `orvlin.invalidate(customerId)`.
+
+    ```bash
+    curl -i http://localhost:3000/search -H "x-customer-id: cust_exhausted"
+    ```
+
+    An exhausted customer gets `402 Payment Required`.
+  </Step>
+
+  <Step title="Check the cache behaviour">
+    Call the endpoint twice in a row. The second check should come from the cache, which you can see with the `source` field returned by `orvlin.check`:
+
+    ```js
+    const first = await orvlin.check('cust_tutorial_1', 'search_requests');
+    const second = await orvlin.check('cust_tutorial_1', 'search_requests');
+    console.log(first.source, second.source); // "live" "cache"
+    ```
+
+    Cached answers are what keep the check fast. See [How answers are cached](/guides/entitlements#how-answers-are-cached) for every source value.
+  </Step>
+</Steps>
+
+## Production checklist
+
+- Create one `Orvlin` client per process, not one per request.
+- Pick `onUnavailable` deliberately. `'deny'` is safer for paid features. `'allow'` may suit low-risk features during an outage.
+- Use a `viewer` key for read-only services that only check entitlements.
+- Log the `source` field so you can see how often checks fall back.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Sell prepaid credits" icon="coins" href="/tutorials/sell-prepaid-credits">
+    Let customers pay in advance for AI generations.
+  </Card>
+  <Card title="Entitlements reference" icon="book" href="/guides/entitlements">
+    Every cache setting and what it does.
+  </Card>
+</CardGroup>

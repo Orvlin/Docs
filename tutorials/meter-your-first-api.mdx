@@ -1,0 +1,179 @@
+---
+title: 'Meter your first API'
+description: 'Build a complete billing setup for a metered API, from catalog to first invoice'
+---
+
+<Info>
+**Time:** about 20 minutes · **Level:** beginner · **You'll build:** a usage-billed API with one plan, one customer, and a verified usage record.
+</Info>
+
+## Scenario
+
+You run a search API. Each request costs $0.001, and customers pay monthly for what they use. By the end of this tutorial, every request your API serves will be recorded against the right customer, and you'll be able to see the usage on their account.
+
+## Prerequisites
+
+- A sandbox workspace and a `developer` API key. See [Quickstart](/quickstart) if you need one.
+- Node.js 20 or later, to run the script in step 5.
+- `curl` and `jq` in your terminal.
+
+Set these variables once for the whole tutorial:
+
+```bash
+export ORVLIN_API="https://api.orvlin.com"
+export ORVLIN_API_KEY="orv_xxxxxxxx_your_secret"
+```
+
+<Steps>
+  <Step title="Define what you're measuring">
+    A metric counts the events you care about. Start with a count of successful search requests.
+
+    ```bash
+    METRIC_ID=$(curl -s -X POST "$ORVLIN_API/v1/metrics" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "search_requests",
+        "description": "Successful search requests",
+        "aggregation": { "type": "count", "filter": { "statusCode": 200 } }
+      }' | jq -r '.id')
+
+    echo "metric: $METRIC_ID"
+    ```
+
+    The `filter` means failed requests (for example, `500`) are not billed.
+  </Step>
+
+  <Step title="Set a price for the metric">
+    A unit price charges the same amount for each unit. This one is $0.001 per request, billed monthly in arrears.
+
+    ```bash
+    PRICE_ID=$(curl -s -X POST "$ORVLIN_API/v1/prices" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d "{
+        \"name\": \"search_price\",
+        \"metricId\": \"$METRIC_ID\",
+        \"config\": { \"model\": \"unit\", \"unitPrice\": 0.001, \"currency\": \"USD\" },
+        \"cadence\": \"monthly\",
+        \"timing\": \"in_arrears\"
+      }" | jq -r '.id')
+
+    echo "price: $PRICE_ID"
+    ```
+
+    <Tip>
+    Want volume discounts instead? Swap the `config` for a tiered model. See [Pricing models](/pricing-models).
+    </Tip>
+  </Step>
+
+  <Step title="Bundle the price into a plan">
+    ```bash
+    PLAN_ID=$(curl -s -X POST "$ORVLIN_API/v1/plans" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d "{
+        \"name\": \"pay-as-you-go\",
+        \"description\": \"Pay per search\",
+        \"prices\": [{ \"priceId\": \"$PRICE_ID\" }]
+      }" | jq -r '.id')
+
+    echo "plan: $PLAN_ID"
+    ```
+  </Step>
+
+  <Step title="Create a customer and subscribe them">
+    Use your own customer ID so your application and Orvlin share one identifier.
+
+    ```bash
+    curl -s -X POST "$ORVLIN_API/v1/customers" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "id": "cust_tutorial_1", "name": "Tutorial Co", "currency": "USD" }' > /dev/null
+
+    curl -s -X POST "$ORVLIN_API/v1/subscriptions" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d "{ \"customerId\": \"cust_tutorial_1\", \"planId\": \"$PLAN_ID\" }" | jq '{id, status}'
+    ```
+
+    You should see a subscription with `"status": "active"`, or `"trialing"` if the plan has a trial.
+  </Step>
+
+  <Step title="Record usage from your application">
+    Every billable request should produce one event, with an idempotency key tied to the request. Here is the pattern in Node.js. Save it as `meter.mjs`:
+
+    ```js
+    // meter.mjs
+    const API = process.env.ORVLIN_API;
+    const KEY = process.env.ORVLIN_API_KEY;
+
+    async function recordSearch(customerId, requestId, statusCode) {
+      const res = await fetch(`${API}/v1/events`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId,
+          eventName: 'search_request',
+          idempotencyKey: requestId,
+          properties: { statusCode },
+        }),
+      });
+      if (!res.ok) throw new Error(`Orvlin ${res.status}: ${await res.text()}`);
+      return res.json();
+    }
+
+    // Simulate three requests, one of which fails.
+    await recordSearch('cust_tutorial_1', 'req_001', 200);
+    await recordSearch('cust_tutorial_1', 'req_002', 200);
+    await recordSearch('cust_tutorial_1', 'req_003', 500);
+    console.log('recorded');
+    ```
+
+    Run it:
+
+    ```bash
+    node meter.mjs
+    ```
+
+    The `eventName` must match what your metric counts. Here it is `search_request`, and the metric counts events where `statusCode` is `200`. The `500` request is recorded but is not billed.
+
+    <Warning>
+    Don't change the `idempotencyKey` between retries of the same request. Reusing a key stops a retry from being counted twice.
+    </Warning>
+  </Step>
+
+  <Step title="Confirm the usage">
+    List the events for the customer:
+
+    ```bash
+    curl -s "$ORVLIN_API/v1/events?customer_id=cust_tutorial_1&event_name=search_request&limit=10" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" | jq '.data | length'
+    ```
+
+    You should see `3`. Next, check what the customer can use:
+
+    ```bash
+    curl -s "$ORVLIN_API/v1/customers/cust_tutorial_1/entitlements" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" | jq
+    ```
+  </Step>
+</Steps>
+
+## What you built
+
+- A metric that counts successful requests.
+- A unit price of $0.001 per request.
+- A plan the customer subscribes to.
+- A usage pipeline that is safe to retry.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Gate features with entitlements" icon="shield-check" href="/tutorials/gate-features-with-entitlements">
+    Stop requests when a customer runs out of allowance.
+  </Card>
+  <Card title="Test billing with test clocks" icon="clock" href="/tutorials/test-billing-with-test-clocks">
+    Move time forward and see the first invoice.
+  </Card>
+</CardGroup>

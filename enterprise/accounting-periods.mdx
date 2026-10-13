@@ -1,0 +1,43 @@
+---
+title: 'Accounting periods'
+description: 'Lock closed months so billing data for them can't change'
+---
+
+When your finance team closes a month, lock its accounting period. Locked periods protect the figures your books depend on, so a late usage event or a re-run can't quietly change a closed month.
+
+## Lock a period
+
+```bash
+curl -s -X POST "$ORVLIN_API/v1/accounting/periods/9/2026/lock" \
+  -H "Authorization: Bearer $ADMIN_SESSION_TOKEN"
+```
+
+The path takes the month as `:month` (1 to 12) and the year as `:year`. The example locks September 2026.
+
+## Unlock a period
+
+Unlocking is for corrections. Record the reason in your own change log, because the unlock is also audited.
+
+```bash
+curl -s -X POST "$ORVLIN_API/v1/accounting/periods/9/2026/unlock" \
+  -H "Authorization: Bearer $ADMIN_SESSION_TOKEN"
+```
+
+## What locking does
+
+A locked period is closed in the accounting ledger, so changes that would alter its figures are blocked. Lock and unlock actions are recorded in the [audit log](/enterprise/audit-logs).
+
+<Note>
+Before your first close, test the lock in sandbox with a test clock, and confirm which changes it blocks in your workspace.
+</Note>
+
+## Recommended close process
+
+1. Confirm all usage for the month has been ingested. Late events are the most common cause of surprises.
+2. Review the revenue summary: `GET /v1/revenue/summary`.
+3. Lock the period.
+4. Export the audit log for the period, and store it with your close file.
+
+<Tip>
+Lock the period only after your revenue summary matches your expectations. Unlocking is possible but leaves a trail.
+</Tip>

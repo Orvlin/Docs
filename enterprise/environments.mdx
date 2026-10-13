@@ -1,0 +1,39 @@
+---
+title: 'Environments and sandbox'
+description: 'Keep test and live billing separate, and promote changes safely'
+---
+
+Billing mistakes are expensive, so keep environments apart. Orvlin workspaces start in **sandbox**, where payments never reach a real processor and test clocks are available.
+
+## Recommended setup
+
+| Environment | Workspace | Keys | Used for |
+|---|---|---|---|
+| Development | Sandbox | `developer` key per developer | Building and experimenting. |
+| Staging | Sandbox | One `developer` key, used by staging | Integration tests and load tests. |
+| Production | Live | Separate `developer` and `viewer` keys | Real customers. |
+
+Give each environment its own keys. A revoked staging key then can't affect production.
+
+## What sandbox does
+
+- Payments never reach a real payment processor, even if one is connected.
+- Test clocks can move customers' time forward to test renewals and retries.
+- Data is kept apart from live customers.
+
+## Promote a change
+
+Change the catalog in sandbox first, then apply the same change to live:
+
+1. Make the change in sandbox, for example a new price or a plan version.
+2. Run through it with a test clock: see [Test billing with test clocks](/tutorials/test-billing-with-test-clocks).
+3. If you manage the catalog as code, deploy the same [pricing manifest](/pricing-manifest) to live with `orvlin deploy --dry-run` first, then without it.
+4. Check the live plan and price in the dashboard before you route customers to it.
+
+<Warning>
+Never point a test script at a live key. Keep live keys in production secret storage only, and don't check them into source control.
+</Warning>
+
+## Checking which environment you're in
+
+Use the health endpoint and your own configuration to show the environment in your logs, so an engineer can tell at a glance which workspace a request went to.

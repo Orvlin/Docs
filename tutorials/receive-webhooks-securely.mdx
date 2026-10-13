@@ -1,0 +1,181 @@
+---
+title: 'Receive webhooks securely'
+description: 'Verify signatures, process each event once, and recover from failed deliveries'
+---
+
+<Info>
+**Time:** about 25 minutes · **Level:** intermediate · **You'll build:** a webhook receiver that rejects forged requests, handles retries safely, and records what it processed.
+</Info>
+
+## Scenario
+
+When an invoice is paid, your system should activate the customer's paid features. Webhooks deliver that event, but endpoints get retried, arrive out of order, and can be spoofed. This tutorial builds a receiver that handles all three.
+
+## Prerequisites
+
+- A public HTTPS endpoint, or a tunnel such as `ngrok` for local testing.
+- A signed-in user session to register the webhook. Webhook management requires a user session, not an API key.
+- Node.js 20 or later.
+
+<Steps>
+  <Step title="Register the endpoint">
+    Subscribe to the two events this tutorial handles. Replace the URL with your endpoint.
+
+    ```bash
+    curl -s -X POST "$ORVLIN_API/v1/webhooks" \
+      -H "Authorization: Bearer $USER_SESSION_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "url": "https://example.com/webhooks/orvlin",
+        "events": ["invoice.paid", "subscription.plan_change"]
+      }' | jq -r '.data.secret'
+    ```
+
+    Save the secret that starts with `whsec_`. It's needed to verify every delivery, and it's shown in this response.
+
+    <Warning>
+    Endpoints must use `https` in production. Store the secret in your secret manager, never in source control.
+    </Warning>
+  </Step>
+
+  <Step title="Verify the signature on the raw body">
+    Parsing the JSON before you verify changes the bytes, so verify first. Using Express:
+
+    ```js
+    // webhooks.js
+    import express from 'express';
+    import crypto from 'node:crypto';
+
+    const app = express();
+    const SECRET = process.env.ORVLIN_WEBHOOK_SECRET;
+
+    // Keep the body as a raw Buffer for the route that verifies signatures.
+    app.post('/webhooks/orvlin', express.raw({ type: 'application/json' }), (req, res) => {
+      const timestamp = req.header('x-orvlin-timestamp');
+      const received = req.header('x-orvlin-signature');
+      if (!timestamp || !received) return res.status(400).end();
+
+      // Reject old deliveries so a captured request can't be replayed later.
+      const ageMs = Math.abs(Date.now() - Date.parse(timestamp));
+      if (!(ageMs < 5 * 60_000)) return res.status(400).end();
+
+      const expected = crypto
+        .createHmac('sha256', SECRET)
+        .update(`${timestamp}.`)
+        .update(req.body)
+        .digest('hex');
+
+      const a = Buffer.from(expected);
+      const b = Buffer.from(received);
+      if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+        return res.status(401).end();
+      }
+
+      const event = JSON.parse(req.body.toString('utf8'));
+      handle(event)
+        .then(() => res.status(200).end())
+        .catch((err) => {
+          console.error('handler failed', event.id, err);
+          res.status(500).end(); // Orvlin will retry
+        });
+    });
+
+    app.listen(3000);
+    ```
+
+    Return `401` for a bad signature and `400` for missing headers. Don't return `200` for an unverified request.
+  </Step>
+
+  <Step title="Process each event exactly once">
+    Orvlin retries a delivery until it gets a `2xx`, so the same event can arrive more than once. Record each event ID the first time you process it, and skip repeats.
+
+    ```js
+    // handle.js
+    const processed = new Set(); // use a database table in production
+
+    export async function handle(event) {
+      if (processed.has(event.id)) return; // duplicate delivery
+      processed.add(event.id);
+
+      switch (event.event) {
+        case 'invoice.paid':
+          await activateFeatures(event.data.customerId);
+          break;
+        case 'subscription.plan_change':
+          await syncPlan(event.data.customerId, event.data);
+          break;
+        default:
+          // Unknown events are acknowledged and ignored.
+          break;
+      }
+    }
+
+    async function activateFeatures(customerId) {
+      console.log('activate features for', customerId);
+    }
+
+    async function syncPlan(customerId, data) {
+      console.log('sync plan for', customerId, data);
+    }
+    ```
+
+    <Tip>
+    Mark the event as processed in the same database transaction as the side effect. If the side effect fails, the mark rolls back, and the retry runs it again.
+    </Tip>
+  </Step>
+
+  <Step title="Test a delivery locally">
+    Send yourself a signed request with the same method Orvlin uses. The sample below signs a body with the secret from step 1:
+
+    ```bash
+    TS=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
+    BODY='{"id":"evt_test_1","event":"invoice.paid","timestamp":"'$TS'","data":{"customerId":"cust_tutorial_1"}}'
+    SIG=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$ORVLIN_WEBHOOK_SECRET" -hex | awk '{print $2}')
+
+    curl -i -X POST http://localhost:3000/webhooks/orvlin \
+      -H "Content-Type: application/json" \
+      -H "X-Orvlin-Event: invoice.paid" \
+      -H "X-Orvlin-Timestamp: $TS" \
+      -H "X-Orvlin-Signature: $SIG" \
+      -d "$BODY"
+    ```
+
+    You should get `200`. Send the exact same request again: it should also return `200`, and the handler should log nothing new. Change one character of the body and send it: you should get `401`.
+  </Step>
+
+  <Step title="Check deliveries and recover from failures">
+    Orvlin records each delivery attempt. If your endpoint was down, look at the failures, fix the endpoint, and let Orvlin retry:
+
+    ```bash
+    curl -s "$ORVLIN_API/v1/webhooks/$WEBHOOK_ID/deliveries?limit=20" \
+      -H "Authorization: Bearer $USER_SESSION_TOKEN" | jq '.data'
+    ```
+
+    Orvlin retries failed deliveries with increasing delays for about a day. Use the `test` endpoint to check the endpoint after a fix:
+
+    ```bash
+    curl -s -X POST "$ORVLIN_API/v1/webhooks/$WEBHOOK_ID/test" \
+      -H "Authorization: Bearer $USER_SESSION_TOKEN"
+    ```
+  </Step>
+</Steps>
+
+## Production checklist
+
+- Verify every request before you parse it.
+- Compare signatures with a constant-time function.
+- Reject timestamps older than a few minutes.
+- Make handlers idempotent, keyed on the event `id`.
+- Respond quickly, and do slow work from a queue.
+- Rotate the secret if it leaks, then update the endpoint.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Webhooks reference" icon="book" href="/api-reference/webhooks">
+    Every event, header, and management endpoint.
+  </Card>
+  <Card title="Reliability" icon="gauge" href="/enterprise/reliability">
+    How Orvlin retries, what it guarantees, and what it doesn't.
+  </Card>
+</CardGroup>

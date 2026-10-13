@@ -1,0 +1,129 @@
+---
+title: 'Test billing with test clocks'
+description: 'Simulate a full billing cycle in minutes: usage, renewal, invoice, and payment retry'
+---
+
+<Info>
+**Time:** about 20 minutes · **Level:** beginner · **You'll build:** a simulated customer whose first billing period closes, producing an invoice you can inspect, without waiting a month.
+</Info>
+
+## Scenario
+
+You've set up the plan in [Meter your first API](/tutorials/meter-your-first-api). Before you go live, you want to see the first invoice: the usage charges, the date it's due, and what happens when a payment fails. Waiting a real month is impractical, so you'll use a test clock.
+
+## Prerequisites
+
+- A sandbox workspace. Test clocks only run in sandbox.
+- The `cust_tutorial_1` customer and their subscription from the first tutorial.
+- Some usage recorded on that customer.
+
+<Steps>
+  <Step title="Create a clock at the start of the period">
+    Freeze the clock at the subscription's start date, so the first period begins now.
+
+    ```bash
+    CLOCK_ID=$(curl -s -X POST "$ORVLIN_API/v1/test-clocks" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "name": "First invoice test", "frozenTime": "2026-10-01T00:00:00Z" }' | jq -r '.id')
+
+    echo "clock: $CLOCK_ID"
+    ```
+
+    `frozenTime` must include a timezone offset or `Z`. Use a date before the usage you want to bill.
+  </Step>
+
+  <Step title="Attach the customer">
+    Attach one customer per request. Only attached customers move with the clock.
+
+    ```bash
+    curl -s -X POST "$ORVLIN_API/v1/test-clocks/$CLOCK_ID/customers" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "customerId": "cust_tutorial_1" }'
+    ```
+
+    <Note>
+    The customer must be created in this sandbox. Customers in another workspace or a live workspace can't be attached.
+    </Note>
+  </Step>
+
+  <Step title="Record usage inside the period">
+    Usage has to be dated inside the period you're about to close. Send events with timestamps between the clock start and the end of the month:
+
+    ```bash
+    curl -s -X POST "$ORVLIN_API/v1/events" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "events": [
+          { "customerId": "cust_tutorial_1", "eventName": "search_request",
+            "timestamp": "2026-10-05T12:00:00Z", "idempotencyKey": "tc_req_1",
+            "properties": { "statusCode": 200 } },
+          { "customerId": "cust_tutorial_1", "eventName": "search_request",
+            "timestamp": "2026-10-20T09:30:00Z", "idempotencyKey": "tc_req_2",
+            "properties": { "statusCode": 200 } }
+        ]
+      }'
+    ```
+
+    With a unit price of $0.001, two requests bill $0.002 for this period.
+  </Step>
+
+  <Step title="Advance the clock past the period end">
+    `to` is required and must be an ISO 8601 timestamp. Move it past the end of the first month:
+
+    ```bash
+    curl -s -X POST "$ORVLIN_API/v1/test-clocks/$CLOCK_ID/advance" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{ "to": "2026-11-02T00:00:00Z" }' | jq
+    ```
+
+    Advancing the clock processes billing for the attached customer up to that time. That includes the renewal and any invoice due in the interval.
+  </Step>
+
+  <Step title="Inspect the invoice">
+    ```bash
+    curl -s "$ORVLIN_API/v1/invoices?customer_id=cust_tutorial_1" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" | jq '.data[] | {id, status, total, dueDate}'
+    ```
+
+    Check three things: the total matches your expectation ($0.002 plus any plan fee), the status is `open` or `paid`, and the due date falls in the right place.
+
+    Look at the line items on the invoice before you trust the total. Each usage price should appear as its own line.
+  </Step>
+
+  <Step title="Simulate a failed payment">
+    To check your retry and notification handling, a payment must fail. Use a test payment method that your payment provider documents as declining, attach it to the customer, then advance the clock again. The decline and any retries are recorded against the invoice:
+
+    ```bash
+    curl -s "$ORVLIN_API/v1/invoices/$INVOICE_ID/payment-attempts" \
+      -H "Authorization: Bearer $ORVLIN_API_KEY" | jq
+    ```
+
+    Watch the webhooks you configured in [Receive webhooks securely](/tutorials/receive-webhooks-securely) for `invoice.payment_failed`, then `invoice.payment_recovered` or `invoice.marked_uncollectible`.
+
+    <Warning>
+    Use your payment provider's published test cards only, and only in sandbox. Real cards are never charged in a sandbox workspace.
+    </Warning>
+  </Step>
+</Steps>
+
+## What to check before launch
+
+- Usage outside the period is excluded from the invoice.
+- A failed `500` request isn't billed, if your metric filters on `statusCode`.
+- The invoice total matches your pricing calculator.
+- Your webhook handler activates and deactivates features on the events above.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Environments and sandbox" icon="flask" href="/enterprise/environments">
+    Keep test and live data apart.
+  </Card>
+  <Card title="Invoicing and collection" icon="file-invoice-dollar" href="/guides/invoicing-and-collection">
+    The full invoice lifecycle.
+  </Card>
+</CardGroup>

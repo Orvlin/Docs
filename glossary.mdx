@@ -1,0 +1,34 @@
+---
+title: 'Glossary'
+description: 'Definitions of the billing terms used across Orvlin'
+---
+
+<AccordionGroup>
+  <Accordion title="Aggregation">How a metric combines matching events into one number: `count`, `sum`, `max`, `count_distinct`, or `sql`.</Accordion>
+  <Accordion title="Allowance">The amount of a feature a customer can use in a period, set by their plan or a grant.</Accordion>
+  <Accordion title="Approval request">A pending action that waits for a second person to approve or reject it. See [Approvals](/enterprise/approvals).</Accordion>
+  <Accordion title="Audit log">A record of changes in the workspace, searchable and exportable. See [Audit logs](/enterprise/audit-logs).</Accordion>
+  <Accordion title="Auto top-up">A rule that buys more credits when a balance falls to a threshold, up to a monthly cap.</Accordion>
+  <Accordion title="Billing period">The span of time a subscription's usage and fees are billed together, such as a calendar month.</Accordion>
+  <Accordion title="Cadence">How often a price is charged: `monthly`, `quarterly`, `annual`, `one_time`, or `usage_based`.</Accordion>
+  <Accordion title="Credit block">A set of credits with its own amount, source, and expiry, held in a wallet.</Accordion>
+  <Accordion title="Credit note">A document that reduces what a customer owes against a paid invoice.</Accordion>
+  <Accordion title="Credit type">What a set of credits is for, such as `image_credits`, and how the balance behaves at zero.</Accordion>
+  <Accordion title="Customer">The party you bill. Identified by your own ID, or by a generated `cust_…` ID.</Accordion>
+  <Accordion title="Dunning">The reminders and retries sent when an invoice isn't paid.</Accordion>
+  <Accordion title="Entitlement">Whether a customer can use a feature right now, and how much of it remains.</Accordion>
+  <Accordion title="Event">One record of something a customer did, sent by your application.</Accordion>
+  <Accordion title="Idempotency key">A value that makes a retried request count or create only once.</Accordion>
+  <Accordion title="in_arrears / in_advance">Whether a price is charged at the end (`in_arrears`) or the start (`in_advance`) of a period.</Accordion>
+  <Accordion title="Invoice">A bill for a period, a purchase, or a manual charge. See the [lifecycle](/guides/invoicing-and-collection).</Accordion>
+  <Accordion title="License">A seat a customer holds under a `license` price.</Accordion>
+  <Accordion title="Metric">A rule that turns events into a billable quantity. See [Metrics](/api-reference/metrics).</Accordion>
+  <Accordion title="Plan">A named bundle of prices that customers subscribe to.</Accordion>
+  <Accordion title="Portal session">A short-lived, customer-scoped token that lets a customer's browser read their billing. See [Customer portal](/guides/customer-portal).</Accordion>
+  <Accordion title="Price">What to charge for a metric or a flat fee, with a pricing model. See [Pricing models](/pricing-models).</Accordion>
+  <Accordion title="Sandbox">A workspace where payments never reach a real processor and test clocks are available. See [Environments](/enterprise/environments).</Accordion>
+  <Accordion title="Subscription">A customer's enrolment in a plan from a start date.</Accordion>
+  <Accordion title="Test clock">A simulated time for a sandbox customer, moved forward to test billing. See [Test billing](/tutorials/test-billing-with-test-clocks).</Accordion>
+  <Accordion title="Wallet">A customer's balance for one credit type.</Accordion>
+  <Accordion title="Webhook">A signed notification sent to your endpoint when something happens. See [Webhooks](/api-reference/webhooks).</Accordion>
+</AccordionGroup>

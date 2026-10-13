@@ -1,0 +1,148 @@
+---
+title: 'Launch a customer portal'
+description: 'Let customers see usage and invoices, and change plans, inside your own app'
+---
+
+<Info>
+**Time:** about 30 minutes · **Level:** intermediate · **You'll build:** a backend route that issues a scoped portal session, and a React page that shows the customer's plan and balance.
+</Info>
+
+## Scenario
+
+Your customers want to check their usage and change plans without emailing you. You'll give each signed-in customer a short-lived portal session. The browser never sees your API key.
+
+## Prerequisites
+
+- A sandbox workspace with a `developer` API key, and a customer such as `cust_tutorial_1`.
+- A backend that can keep a secret (Node.js is used here) and a React app.
+
+<Steps>
+  <Step title="Create a portal session on your backend">
+    Your server checks that the user is signed in to your app, then creates a session for that user's customer only.
+
+    ```js
+    // server/portal.js
+    export async function createPortalSession(req, res) {
+      const user = req.user; // from your own auth
+      if (!user) return res.status(401).end();
+
+      const r = await fetch(`${process.env.ORVLIN_API}/v1/portal/sessions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.ORVLIN_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customerId: user.billingCustomerId, // the customer linked to this user
+          expiresInSeconds: 900,               // 15 minutes
+          allowPlanChanges: true,
+          allowCreditPurchases: false,
+        }),
+      });
+      if (!r.ok) return res.status(502).json({ error: 'Could not start billing portal' });
+
+      const session = await r.json();
+      res.json(session); // return only what the browser needs
+    }
+    ```
+
+    <Warning>
+    Never take the `customerId` from the browser. Read it from the signed-in user on your server, or any user could open another customer's billing.
+    </Warning>
+  </Step>
+
+  <Step title="Read the portal token in the browser">
+    The React SDK uses the portal token, not your API key. Pass it to `OrvlinProvider`. Use `getToken` if your token expires, so the SDK can request a new one.
+
+    ```tsx
+    // app/BillingPage.tsx
+    import { OrvlinProvider, useEntitlements, useCredits } from '@orvlin/react';
+
+    export function BillingPage({ portalToken }: { portalToken: string }) {
+      return (
+        <OrvlinProvider token={portalToken} apiBase="https://api.orvlin.com">
+          <Usage />
+        </OrvlinProvider>
+      );
+    }
+
+    function Usage() {
+      const { entitlements, loading, error } = useEntitlements();
+      const { balance } = useCredits('image_credits');
+
+      if (loading) return <p>Loading your plan…</p>;
+      if (error) return <p>We couldn't load your billing details.</p>;
+
+      return (
+        <section>
+          <h2>Your plan</h2>
+          <ul>
+            {entitlements.map((e) => (
+              <li key={e.featureId}>
+                {e.featureName}: {e.remaining ?? 'unlimited'} left
+              </li>
+            ))}
+          </ul>
+          <p>Image credits: {balance ?? 0}</p>
+        </section>
+      );
+    }
+    ```
+
+    The hooks refresh automatically. Show `loading` and `error` states so the page never looks empty by mistake.
+  </Step>
+
+  <Step title="Let customers preview a plan change">
+    Before a customer changes plans, show what it will cost. The preview doesn't change anything.
+
+    ```bash
+    curl -s "$ORVLIN_API/v1/portal/plan-change/preview?planId=$PRO_PLAN_ID" \
+      -H "Authorization: Bearer $PORTAL_TOKEN" | jq
+    ```
+
+    Show the result on screen. When the customer confirms, call `POST /v1/portal/plan-change` with the same plan.
+
+    ```bash
+    curl -s -X POST "$ORVLIN_API/v1/portal/plan-change" \
+      -H "Authorization: Bearer $PORTAL_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d "{ \"planId\": \"$PRO_PLAN_ID\" }"
+    ```
+
+    <Tip>
+    Confirm the plan change with a second click. Plan changes can change the next invoice.
+    </Tip>
+  </Step>
+
+  <Step title="Show invoices">
+    ```bash
+    curl -s "$ORVLIN_API/v1/portal/invoices" \
+      -H "Authorization: Bearer $PORTAL_TOKEN" | jq '.data[] | {id, status, total}'
+    ```
+
+    Link each invoice to its hosted page from the [invoices API](/api-reference/invoices), so the customer can pay or download it.
+  </Step>
+
+  <Step title="Expire and revoke access">
+    Sessions expire on their own. Keep `expiresInSeconds` short, and create a new session each time the customer opens the billing page. Tokens are scoped to one customer, so a leaked token can't read another customer's data.
+  </Step>
+</Steps>
+
+## Production checklist
+
+- Create sessions only for users who are signed in to your app.
+- Derive the customer ID on the server, never from the request.
+- Keep sessions short-lived.
+- Enable `allowCreditPurchases` only if you have credit types configured.
+- Show the plan-change preview before every change.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Customer portal guide" icon="id-card" href="/guides/customer-portal">
+    Every portal endpoint and option.
+  </Card>
+  <Card title="Portal API reference" icon="book" href="/api-reference/portal">
+    Request and response details.
+  </Card>
+</CardGroup>

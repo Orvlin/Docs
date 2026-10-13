@@ -1,0 +1,63 @@
+---
+title: 'Security model'
+description: 'How Orvlin authenticates people and services, protects credentials, and signs webhooks'
+---
+
+This page describes how Orvlin protects your workspace, what you control, and what to check during a security review.
+
+## Trust boundaries
+
+| Actor | Authenticates with | Can do |
+|---|---|---|
+| Your servers | API key (`orv_…`) | Calls the API, within the key's role. |
+| Your customers' browsers | Portal token, scoped to one customer | Reads and acts on that customer's billing only. |
+| Your team | Session (email and password, magic link, or SSO) | Manages the workspace, keys, and webhooks. |
+| Orvlin | Signs webhooks and invoices | Sends events to endpoints you registered. |
+
+Keep API keys on servers. Never ship them to browsers or mobile apps. Portal tokens are the browser credential.
+
+## API keys
+
+- Each key has a **role**. Grant the smallest role that does the job. See [API keys](/api-reference/api-keys#roles).
+- A key can't be created with a higher role than the person creating it.
+- Keys are shown once, when created. They can't be retrieved afterwards.
+- Revoking a key takes effect immediately; requests with it return `401`.
+- Creating and revoking keys requires a signed-in user session, so a leaked key can't mint new keys.
+
+<Tip>
+Rotate keys on a schedule and after any staff change. The [rotation steps](/api-reference/api-keys#rotate-a-key) create the new key before revoking the old one, so there's no downtime.
+</Tip>
+
+## Sessions
+
+- Access tokens expire after 15 minutes (`expiresIn: 900`). Refresh tokens are exchanged for new access tokens.
+- Sign-in through SSO returns a single-use code that is valid for 60 seconds. Tokens never appear in a URL.
+- Enterprise workspaces can [require SSO](/guides/sso), which turns off password and magic-link sign-in for the verified domains.
+
+## Credentials at rest
+
+- Integration credentials for tax, CRM, accounting, and warehouse providers are stored encrypted with AES-256-GCM.
+- Client secrets for SSO connections are stored encrypted.
+- Orvlin never returns a stored secret after it has been saved.
+
+## Webhook signatures
+
+Every webhook delivery is signed with HMAC-SHA256 over the timestamp and the raw body, using a per-endpoint secret. Receivers verify the signature and reject old timestamps. See [Receive webhooks securely](/tutorials/receive-webhooks-securely).
+
+## Access control in the workspace
+
+- Money-moving actions can require a second approver. See [Approvals](/enterprise/approvals).
+- Every change is recorded in the audit log. See [Audit logs](/enterprise/audit-logs).
+- Accounting periods can be locked so closed months can't change. See [Accounting periods](/enterprise/accounting-periods).
+
+## Transport
+
+All API traffic uses HTTPS. Webhook endpoints must use HTTPS in production.
+
+## Reporting a vulnerability
+
+Email security reports to `support@orvlin.com` with the subject line "Security report" and steps to reproduce. Please don't test against other customers' data, and use a sandbox workspace for testing.
+
+<Note>
+Confirm the security contact with your account team before you publish this page for customers. A dedicated security address is recommended.
+</Note>

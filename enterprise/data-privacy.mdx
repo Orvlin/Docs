@@ -1,0 +1,43 @@
+---
+title: 'Data privacy'
+description: 'Export or erase a customer's data to meet access and deletion requests'
+---
+
+Customers can ask what data you hold about them, and ask you to delete it. Orvlin gives you two operations for those requests.
+
+## Export a customer's data
+
+```bash
+curl -s "$ORVLIN_API/v1/customers/cust_acme/data-export" \
+  -H "Authorization: Bearer $ADMIN_SESSION_TOKEN" -o cust_acme-export.json
+```
+
+The export contains the data Orvlin stores about that customer. Save the file to your secure storage, and don't email it unencrypted.
+
+## Erase a customer's personal data
+
+```bash
+curl -s -X POST "$ORVLIN_API/v1/customers/cust_acme/erase" \
+  -H "Authorization: Bearer $ADMIN_SESSION_TOKEN"
+```
+
+Erasure removes the customer's personal information. Keep the following in mind:
+
+- **Export first.** Treat erasure as permanent. Keep an export if you need one for your own records.
+- **Check retention duties.** Some invoice and tax records may have to be kept by law. Confirm with your legal team before erasing customers with financial history.
+- **The action is audited.** The erasure is recorded in the [audit log](/enterprise/audit-logs).
+
+<Warning>
+Confirm the request with the customer and your legal team before erasing, especially for customers with open invoices.
+</Warning>
+
+## Retention
+
+Your retention settings control how long Orvlin keeps data that isn't tied to an erasure request. Read and set them with the privacy endpoints at `/v1/privacy/retention`.
+
+## Responding to a request
+
+1. Verify the requester's identity in your own system.
+2. Export the data, and send it through your secure channel.
+3. If they asked for deletion, erase the customer after confirming.
+4. Record the request and your response in your compliance tracker.

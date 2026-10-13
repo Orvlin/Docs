@@ -25,13 +25,30 @@
   "navigation": {
     "groups": [
       {
-        "group": "Getting Started",
+        "group": "Get started",
         "pages": [
           "introduction",
-          "quickstart",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Concepts",
+        "pages": [
           "core-concepts",
+          "glossary",
           "pricing-models",
           "pricing-manifest"
+        ]
+      },
+      {
+        "group": "Tutorials",
+        "pages": [
+          "tutorials/meter-your-first-api",
+          "tutorials/gate-features-with-entitlements",
+          "tutorials/sell-prepaid-credits",
+          "tutorials/receive-webhooks-securely",
+          "tutorials/launch-customer-portal",
+          "tutorials/test-billing-with-test-clocks"
         ]
       },
       {
@@ -43,12 +60,23 @@
           "guides/invoicing-and-collection",
           "guides/customer-portal",
           "guides/integrations",
-          "guides/sso",
-          "testing"
+          "guides/sso"
         ]
       },
       {
-        "group": "SDKs and Tools",
+        "group": "Enterprise",
+        "pages": [
+          "enterprise/security-model",
+          "enterprise/approvals",
+          "enterprise/audit-logs",
+          "enterprise/accounting-periods",
+          "enterprise/data-privacy",
+          "enterprise/environments",
+          "enterprise/reliability"
+        ]
+      },
+      {
+        "group": "SDKs and tools",
         "pages": [
           "sdks/node",
           "sdks/python",
@@ -57,7 +85,7 @@
         ]
       },
       {
-        "group": "API Reference",
+        "group": "API reference",
         "pages": [
           "api-reference/overview",
           "api-reference/authentication",
@@ -73,7 +101,9 @@
           "api-reference/credits",
           "api-reference/licenses",
           "api-reference/webhooks",
-          "api-reference/portal"
+          "api-reference/portal",
+          "api-reference/approvals",
+          "api-reference/audit-logs"
         ]
       },
       {

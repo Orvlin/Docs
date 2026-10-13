@@ -1,0 +1,94 @@
+---
+title: 'Approvals'
+description: 'Read and change approval policies, and approve or reject requests'
+---
+
+Approvals hold money-moving actions until a second person decides on them. For how the feature works, see [Approvals](/enterprise/approvals).
+
+## Policies
+
+### List policies
+
+```http
+GET /v1/approvals/policies
+```
+
+Returns one policy per action, with a `label` and whether the action `hasAmount`:
+
+```json
+{
+  "data": [
+    {
+      "action": "credit.grant",
+      "label": "Grant a credit",
+      "hasAmount": true,
+      "enabled": true,
+      "thresholdAmount": 500,
+      "thresholdCurrency": "USD",
+      "updatedAt": "2026-10-13T09:00:00.000Z"
+    }
+  ]
+}
+```
+
+### Update a policy
+
+```http
+PUT /v1/approvals/policies/:action
+```
+
+Only workspace admins can change policies. Unknown actions return `404`.
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `enabled` | boolean | Yes | Whether the action needs approval. |
+| `thresholdAmount` | number or `null` | No | Only amounts at or above this need approval. `null` applies to every amount. |
+| `thresholdCurrency` | string or `null` | No | Three-letter ISO code. |
+
+The `action` must be one of `credit.grant`, `invoice.void`, `invoice.credit_note`, or `subscription.cancel`.
+
+## Requests
+
+### List requests
+
+```http
+GET /v1/approvals
+```
+
+Returns pending and past requests, most recent first.
+
+### Get a request
+
+```http
+GET /v1/approvals/:id
+```
+
+Returns `404` if the request isn't in your workspace.
+
+### Approve
+
+```http
+POST /v1/approvals/:id/approve
+```
+
+```json
+{ "note": "Matches the signed credit agreement" }
+```
+
+`note` is optional, up to 1000 characters.
+
+### Reject
+
+```http
+POST /v1/approvals/:id/reject
+```
+
+```json
+{ "note": "Amount doesn't match the order" }
+```
+
+`note` is optional, up to 1000 characters. A rejected request doesn't run.
+
+## Status values
+
+`pending`, `approved`, `executing`, `executed`, `failed`, `rejected`, `expired`. See the [lifecycle](/enterprise/approvals#request-lifecycle).

@@ -1,0 +1,56 @@
+---
+title: 'Audit logs'
+description: 'Find and export a record of every change made in your workspace'
+---
+
+The audit log records changes in your workspace: who did what, to which resource, and when. Use it for investigations, access reviews, and compliance evidence.
+
+## What is recorded
+
+Changes to billing, catalog, customers, keys, webhooks, approvals, and privacy actions are recorded. Each entry includes:
+
+- the **action**, such as `invoice.void`, `api_key.create`, or `credits.grant`
+- the **resource type** and **resource ID** the action applied to
+- the time it happened
+- details of the change, where they apply
+
+Examples of recorded actions include `api_key.create`, `api_key.revoke`, `webhook.create`, `webhook.delete`, `credits.grant`, `invoice.void`, and `invoice.credit_note`.
+
+## Search the log
+
+```bash
+curl -s "$ORVLIN_API/v1/audit?action=api_key.*&since=2026-10-01T00:00:00Z&limit=100" \
+  -H "Authorization: Bearer $ADMIN_SESSION_TOKEN" | jq
+```
+
+Filter by:
+
+| Parameter | Description |
+|---|---|
+| `action` | An exact action name, or a prefix ending in `*`, such as `customer.*`. |
+| `resourceType` | The kind of resource, such as `invoice`. |
+| `resourceId` | One specific resource. |
+| `since`, `until` | ISO 8601 bounds, inclusive. |
+| `limit`, `offset` | Paging. Default 50 per page, maximum 1000. |
+
+## Export
+
+Add `format=csv` to download the matching entries as a CSV file for your records or SIEM:
+
+```bash
+curl -s "$ORVLIN_API/v1/audit?since=2026-10-01T00:00:00Z&format=csv" \
+  -H "Authorization: Bearer $ADMIN_SESSION_TOKEN" -o audit-2026-10.csv
+```
+
+## Retention
+
+Keep exports in your own storage, under your own retention policy. Confirm with your account team how long Orvlin keeps audit entries for your plan. If you need a longer period, export on a schedule.
+
+<Warning>
+Audit entries can't be edited or deleted through the API. Treat exports as evidence: store them somewhere write-protected.
+</Warning>
+
+## Related
+
+- [API reference: audit logs](/api-reference/audit-logs)
+- [Approvals](/enterprise/approvals)

@@ -1,0 +1,51 @@
+---
+title: 'Audit logs'
+description: 'List and export audit log entries for your workspace'
+---
+
+For what is recorded and how to use the log, see [Audit logs](/enterprise/audit-logs).
+
+## List entries
+
+```http
+GET /v1/audit
+```
+
+Requires a signed-in user session with access to audit logs.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `action` | string | | An exact action, or a prefix ending in `*`, such as `customer.*`. |
+| `resourceType` | string | | The kind of resource, such as `invoice`. |
+| `resourceId` | string | | One specific resource ID. |
+| `since` | string | | ISO 8601 start, inclusive. |
+| `until` | string | | ISO 8601 end, inclusive. |
+| `limit` | integer | `50` | Entries per page. Maximum `1000`. |
+| `offset` | integer | `0` | Entries to skip. |
+| `format` | string | `json` | Set to `csv` to download a CSV file. |
+
+A malformed `since` or `until` returns `400`.
+
+### Example response
+
+```json
+{
+  "data": [
+    {
+      "action": "invoice.void",
+      "resourceType": "invoice",
+      "resourceId": "inv_01JX…",
+      "createdAt": "2026-10-12T14:05:00.000Z"
+    }
+  ]
+}
+```
+
+## Export as CSV
+
+```bash
+curl -s "$ORVLIN_API/v1/audit?since=2026-10-01T00:00:00Z&format=csv" \
+  -H "Authorization: Bearer $ADMIN_SESSION_TOKEN" -o audit.csv
+```
+
+A CSV export returns up to the `limit` you set, or the maximum of `1000` when you don't set one. Page with `offset` for larger exports.

@@ -1,0 +1,58 @@
+---
+title: 'Reliability'
+description: 'How webhooks, retries, idempotency, and failures behave, and what your systems should do'
+---
+
+This page explains what Orvlin does when things go wrong, so you can design your integration around it.
+
+## Webhook delivery
+
+Webhooks are stored in a durable outbox before they're sent, so a restart or deploy doesn't lose them.
+
+- Each attempt times out after 8 seconds.
+- A failed attempt (anything other than a `2xx`) is retried with increasing delays. The schedule runs from 30 seconds to 12 hours, for about a day in total.
+- After the last attempt, the delivery is marked as failed. It stays in the delivery log.
+- A disabled or deleted endpoint stops receiving events. A rotated secret is used on the next attempt.
+- The event `id` and payload stay the same across retries, so your handler can deduplicate.
+
+Design your handler to be idempotent and to respond fast. See [Receive webhooks securely](/tutorials/receive-webhooks-securely).
+
+## Idempotency
+
+Anything that creates money-related records accepts an idempotency key:
+
+- Events, keyed on `idempotencyKey`. A duplicate event isn't counted twice.
+- Credit grants and purchases, keyed on `idempotencyKey`. A retry grants or sells once.
+
+Reuse the same key when you retry the same logical operation. Use a new key for a new operation.
+
+## Usage ingestion
+
+- Event batches can contain a mix of accepted and rejected events. The response lists both, so retry only the rejected ones after you fix them.
+- Entitlement checks in the SDK keep answering during short outages, using cached answers for up to 24 hours by default. Choose `onUnavailable` deliberately: see [Entitlements](/guides/entitlements#how-answers-are-cached).
+
+## Rate limits and maintenance
+
+- If you're rate limited, the API returns `429`. Back off and retry.
+- During maintenance, changes are paused and the API returns `503` with `"code": "maintenance"`. Read-only checks may still work. Retry after a few minutes.
+
+## Health checks
+
+| Endpoint | Use |
+|---|---|
+| `GET /v1/health` | Confirms the API is up. Use it for uptime monitoring. |
+| `GET /v1/health/ready` | Confirms the API is ready for traffic. Use it before routing requests. |
+
+## Failure modes and what to do
+
+| If this happens | Your system should |
+|---|---|
+| A webhook endpoint is down | Keep returning `5xx` until fixed. Orvlin retries. Replay from the delivery log if needed. |
+| Orvlin is slow or unreachable for a check | Use the SDK's cached answer. Log the `source` field. |
+| An event is rejected | Fix the payload, then resend with the same `idempotencyKey`. |
+| A credit purchase is pending payment | Don't deliver credits yet. Wait for `invoice.paid`. |
+| A request returns `500` | Retry with backoff, using the same idempotency key. Contact support with the time of the request if it continues. |
+
+## Support
+
+For incidents, include the workspace subdomain, the request time (in UTC), and the `x-request-id` or event `id` involved.

@@ -52,32 +52,6 @@ After connecting, set the connection's settings:
 
 Sync is one-way, from Orvlin to your books. A payment recorded directly in QuickBooks or Xero does not mark the Orvlin invoice paid.
 
-## Data warehouse
-
-Invoices, line items, customers, subscriptions, credits, and usage events are exported every 10 minutes, or on demand with **Export now**.
-
-| Destination | What you provide |
-|---|---|
-| Amazon S3 (or any S3-compatible store) | A bucket, a region, and a key with `s3:PutObject`. Optional prefix and endpoint. |
-| BigQuery | A project, a dataset, and a service account with BigQuery Data Editor. |
-| Snowflake | An account, a user with a registered RSA key, a warehouse, a database, and a schema. |
-
-Every exported row has `id`, `account_id`, `exported_at`, and `data` (the full record). Exports are append-only, so take the latest row per `id`:
-
-```sql
--- BigQuery
-SELECT * EXCEPT (rn) FROM (
-  SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY exported_at DESC) AS rn
-  FROM billing.orvlin_invoices
-) WHERE rn = 1;
-
--- Snowflake
-SELECT * FROM ORVLIN_INVOICES
-QUALIFY ROW_NUMBER() OVER (PARTITION BY ID ORDER BY EXPORTED_AT DESC) = 1;
-```
-
-Each run exports up to 5,000 rows per dataset and continues on the next run, so the first export of a large account takes several runs. Check progress on the card, or at `GET /v1/integrations/warehouse/status`.
-
 ## Cloud marketplaces
 
 Connect AWS Marketplace, Azure Marketplace, or Google Cloud Marketplace to sell through a marketplace listing. Each one needs:

@@ -25,6 +25,7 @@ When a request fails, Orvlin returns a non-2xx status code and a JSON body.
 | `401 Unauthorized` | The API key is missing, invalid, or revoked. | Check the key. See [Authentication](/api-reference/authentication). |
 | `403 Forbidden` | The key is valid but its role can't do this. | Use a key with a higher role, or check whether the action is allowed for your plan. |
 | `404 Not Found` | The resource doesn't exist in your workspace. | Check the ID. Resources in other workspaces also return `404`. |
+| `409 Conflict` | The change is blocked by the current state of a resource. For example, the invoice's accounting period is closed (`"code": "period_closed"`). | Reopen the period if the change is needed, or make the change in an open period. See [Accounting periods](/enterprise/accounting-periods). |
 | `429 Too Many Requests` | You've sent too many requests. | Wait, then retry with exponential backoff. |
 | `500 Internal Server Error` | Something went wrong on our side. The message is hidden. | Retry with backoff. If it continues, contact support with the request time. |
 | `503 Service Unavailable` | Orvlin is temporarily unavailable, for example during maintenance. | Retry after a few minutes. Responses with `"code": "maintenance"` mean changes are paused. |

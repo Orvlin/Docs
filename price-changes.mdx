@@ -1,0 +1,83 @@
+---
+title: 'Price changes'
+description: 'Preview, schedule, and roll out changes to plans and prices without disrupting existing subscriptions'
+---
+
+Changing prices is a common source of billing mistakes. Orvlin lets you preview a change, schedule it for a future date, and move customers across in a controlled way.
+
+## How plan versions work
+
+Editing a plan creates a new version. Existing subscriptions stay on the version they started with, until you migrate them.
+
+| Action | Endpoint |
+|---|---|
+| List versions | `GET /v1/plans/:id/versions` |
+| Publish a version so new subscriptions can use it | `POST /v1/plans/:id/publish` |
+| Restore an earlier version | `POST /v1/plans/:id/versions/:version/restore` |
+
+## Preview a migration
+
+Before moving customers, preview the migration. It shows the effect without changing anything.
+
+```bash
+curl -s -X POST "$ORVLIN_API/v1/price-migrations/preview" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fromPlanId": "01JX_OLD_PLAN",
+    "toPlanId": "01JX_NEW_PLAN",
+    "customerIds": ["cust_acme"]
+  }'
+```
+
+`customerIds` limits the migration to specific customers, and accepts up to 10,000 IDs.
+
+## Schedule a migration
+
+Schedule the migration for a future date. `effectiveAt` is required.
+
+```bash
+curl -s -X POST "$ORVLIN_API/v1/price-migrations" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Q4 price increase",
+    "fromPlanId": "01JX_OLD_PLAN",
+    "toPlanId": "01JX_NEW_PLAN",
+    "effectiveAt": "2026-11-01T00:00:00Z"
+  }'
+```
+
+Scheduling records who scheduled it, and the change is written to the [audit log](/enterprise/audit-logs).
+
+## Track and cancel
+
+| Action | Endpoint |
+|---|---|
+| List migrations | `GET /v1/price-migrations` |
+| Read one | `GET /v1/price-migrations/:id` |
+| Cancel before it takes effect | `POST /v1/price-migrations/:id/cancel` |
+
+## Change one subscription
+
+To change a single subscription instead of a group:
+
+| Action | Endpoint |
+|---|---|
+| Amend now | `POST /v1/subscriptions/:id/amend` |
+| Amend at a future date | `POST /v1/subscriptions/:id/schedule-amendment` |
+| List amendments | `GET /v1/subscriptions/:id/amendments` |
+| Move to another plan version | `POST /v1/subscriptions/:id/migrate` |
+
+To see the next invoice before a change, use `POST /v1/subscriptions/:id/invoices/compute`.
+
+<Warning>
+Preview every migration before you schedule it. A scheduled migration applies to every customer it covers when `effectiveAt` arrives. Cancel it before then if something is wrong.
+</Warning>
+
+## Checklist before a price change
+
+1. Preview the migration for a sample of customers.
+2. Confirm the expected invoice with the next-invoice computation.
+3. Tell customers before the effective date, using your own notice process.
+4. Schedule the migration, and check the results on the effective date. Read the migration with `GET /v1/price-migrations/:id`.

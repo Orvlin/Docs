@@ -1,0 +1,81 @@
+---
+title: 'Alerts and budgets'
+description: 'Get notified when usage or spend crosses a threshold, and cap spend with budgets'
+---
+
+Alerts tell your team when something needs attention. Budgets stop or slow usage once a spend limit is reached.
+
+## Alerts
+
+An alert watches a threshold and notifies you when it's crossed. Create one per customer, per metric, or for the whole workspace.
+
+```bash
+curl -s -X POST "$ORVLIN_API/v1/alerts" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": "cust_acme",
+    "thresholdAmount": 500,
+    "thresholdType": "revenue",
+    "notifyEmail": "billing@acme.example"
+  }'
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `thresholdAmount` | Yes | A positive number. The alert fires when the threshold is crossed. |
+| `thresholdType` | No | `revenue` (amount billed) or `event_count` (number of events). |
+| `customerId` | No | Limit the alert to one customer. Leave it out for the whole workspace. |
+| `metricId` | No | Limit the alert to one metric. |
+| `notifyEmail` | No | An address to notify. Alerts also appear in the list endpoint. |
+
+Manage alerts with:
+
+| Action | Endpoint |
+|---|---|
+| List alerts and notifications | `GET /v1/alerts` |
+| Update an alert | `PATCH /v1/alerts/:id` |
+| Delete an alert | `DELETE /v1/alerts/:id` |
+| Mark a notification as read | `POST /v1/alerts/:id/read` |
+
+## Budgets
+
+A budget caps spend for a scope over a period. Each budget sets what happens when the limit is reached.
+
+```bash
+curl -s -X POST "$ORVLIN_API/v1/budgets" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "scope": "customer",
+    "scopeId": "cust_acme",
+    "limit": 1000,
+    "currency": "USD",
+    "period": "billing_period",
+    "action": "warn",
+    "warnAt": 0.8
+  }'
+```
+
+| Field | Required | Values | Description |
+|---|---|---|---|
+| `scope` | Yes | `customer`, `agent`, `session`, `account` | What the budget applies to. |
+| `scopeId` | Depends on scope | An ID | The customer, agent, or session the budget covers. |
+| `limit` | Yes | A positive number | The spend limit. |
+| `period` | No | `billing_period`, `day`, `hour`, `session`, `total` | The window the limit applies to. |
+| `action` | No | `block`, `degrade`, `warn` | What happens at the limit. |
+| `warnAt` | No | `0` to `1` | The fraction of the limit at which to warn. |
+
+Budgets are checked before work runs. `POST /v1/budgets/check` answers whether a planned spend fits, and `POST /v1/budgets/record` records spend that has happened.
+
+Read a budget's spend and what it blocked:
+
+| Action | Endpoint |
+|---|---|
+| Current spend | `GET /v1/budgets/:id/spend` |
+| Enforcement history | `GET /v1/budgets/:id/events` |
+| Reset a session's spend | `POST /v1/budgets/sessions/:sessionId/reset` |
+
+<Tip>
+Start budgets with `"action": "warn"` and a `warnAt` value. Switch to `block` once you have seen the normal spend pattern for a customer.
+</Tip>

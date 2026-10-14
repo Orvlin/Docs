@@ -1,0 +1,51 @@
+---
+title: 'Production readiness'
+description: 'What to verify before you send live traffic or real invoices through Orvlin'
+---
+
+Use this review before you move an integration from sandbox to a live workspace, and again after major changes to your pricing.
+
+## Keys and access
+
+- [ ] Sandbox and live use separate API keys, each stored in your secret manager.
+- [ ] Each service uses the smallest [key role](/api-reference/api-keys#roles) that works. Services that only check access use `viewer`.
+- [ ] Keys are rotated on a schedule, and you know how to revoke one quickly.
+- [ ] Your team has the [audit log](/enterprise/audit-logs) and knows how to export it.
+
+## Usage
+
+- [ ] Every billable action produces exactly one event, sent after the action succeeds.
+- [ ] Every event has an `idempotencyKey` derived from the action, not from the time you sent it.
+- [ ] Each event's `eventName` matches the metric it counts. Check a sample with `GET /v1/events`.
+- [ ] Rejected events are logged and retried after the cause is fixed.
+
+## Entitlements and credits
+
+- [ ] Checks run before paid work. Your code handles `hasAccess: false` with a clear response.
+- [ ] You chose `onUnavailable` on purpose for each feature.
+- [ ] Credit grants and purchases use idempotency keys.
+
+## Webhooks
+
+- [ ] The endpoint uses HTTPS and verifies signatures before parsing the body.
+- [ ] Handlers are idempotent on the event `id`.
+- [ ] Handlers respond quickly, and slow work runs from a queue.
+- [ ] You've tested the endpoint with a test delivery.
+
+## Billing
+
+- [ ] A test clock in sandbox shows the expected first invoice, including usage and tax.
+- [ ] Your plans, prices, and metrics have been reviewed against the [pricing models](/pricing-models).
+- [ ] You know who can approve money-moving actions under your [approval policies](/enterprise/approvals).
+- [ ] Accounting periods are closed on your close calendar, and reopening is restricted to admins.
+
+## Operations
+
+- [ ] Monitoring alerts on rising rates of `4xx` and `5xx` responses, and on webhook delivery failures.
+- [ ] You know where delivery logs are: `GET /v1/webhooks/:id/deliveries`.
+- [ ] Your on-call engineers have read the [reliability](/enterprise/reliability) page.
+- [ ] You have a contact for incidents and know which details to include (workspace, request time in UTC, and request or event ID).
+
+## Sign-off
+
+Record who reviewed each section and the date. Keep the record with your change log, because auditors ask for it.

@@ -1,0 +1,82 @@
+---
+title: 'Backfill and rerate'
+description: 'Load missed usage for an open period, and recalculate invoices that were issued from incomplete data'
+---
+
+Sometimes usage arrives late, or was never sent. Two operations fix the data without a manual adjustment:
+
+- **Backfill** loads historical events that were missed.
+- **Rerate** recalculates an issued invoice from the usage that is now in Orvlin.
+
+Both respect [closed accounting periods](/enterprise/accounting-periods): changes to a closed period are refused.
+
+## Backfill events
+
+Use backfill for events older than the late-event window. Live traffic should keep using `POST /v1/events`.
+
+```bash
+curl -s -X POST "$ORVLIN_API/v1/events/backfill" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "events": [
+      {
+        "customerId": "cust_acme",
+        "eventName": "search_request",
+        "timestamp": "2026-09-14T10:02:00Z",
+        "idempotencyKey": "backfill_req_88121",
+        "properties": { "statusCode": 200 }
+      }
+    ]
+  }'
+```
+
+Rules:
+
+- Up to 10,000 events per request.
+- Every event needs an `idempotencyKey`. Re-sending the same key never counts an event twice, so a failed import can be retried safely.
+- Events dated in a closed accounting period are rejected with a reason. Reopen the period only if the correction is approved.
+
+## Rerate an invoice
+
+Preview what would change before you apply it:
+
+```bash
+curl -s "$ORVLIN_API/v1/invoices/inv_01JX/rerate" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY"
+```
+
+The preview returns each changed line and the total difference. To apply it:
+
+```bash
+curl -s -X POST "$ORVLIN_API/v1/invoices/inv_01JX/rerate" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY"
+```
+
+## Rerate a customer's invoices in a window
+
+After a backfill, rerate every invoice for the customer whose period overlaps the window. Set `apply` to `false` to preview first:
+
+```bash
+curl -s -X POST "$ORVLIN_API/v1/rerate" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customerId": "cust_acme",
+    "from": "2026-09-01T00:00:00Z",
+    "to": "2026-09-30T23:59:59Z",
+    "apply": false
+  }'
+```
+
+Each result lists the invoice, its status, and the changes. An invoice in a closed period is reported with `"code": "period_closed"` and is left unchanged. The rest of the batch still runs.
+
+<Tip>
+Run backfill, then preview the rerate, then apply it. Check the totals against your usage report before you send any corrected invoice to a customer.
+</Tip>
+
+## Related
+
+- [Usage metering](/guides/usage-metering)
+- [Invoicing and collection](/guides/invoicing-and-collection)
+- [API reference: events](/api-reference/events)

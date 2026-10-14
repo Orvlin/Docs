@@ -1,0 +1,45 @@
+---
+title: 'Revenue reporting'
+description: 'Recognize revenue over the service period and report it by contract, period, and waterfall'
+---
+
+Revenue reporting turns invoices into recognized revenue. Orvlin schedules how each invoice's revenue is earned over the period it covers, and gives you summaries for your books.
+
+## Contracts and obligations
+
+A contract groups the performance obligations it contains. Obligations are the parts of a contract whose revenue is recognized separately.
+
+| Action | Endpoint |
+|---|---|
+| Create a contract | `POST /v1/revenue/contracts` |
+| List contracts | `GET /v1/revenue/contracts` |
+| Read a contract | `GET /v1/revenue/contracts/:id` |
+| Update a contract | `PATCH /v1/revenue/contracts/:id` |
+| Add an obligation | `POST /v1/revenue/contracts/:contractId/obligations` |
+| List a contract's obligations | `GET /v1/revenue/contracts/:contractId/obligations` |
+| Recognize an obligation as of a date | `POST /v1/revenue/obligations/:id/recognize` |
+
+Recognition takes an `asOf` date. If you omit it, the date is today.
+
+## Generate the schedule
+
+Use `POST /v1/revenue/generate` to generate recognition schedules. See the [API reference](/api-reference/overview) for the request fields.
+
+## Reports
+
+| Report | Endpoint | Use it for |
+|---|---|---|
+| Summary | `GET /v1/revenue/summary` | Recognized and deferred revenue by period. |
+| Waterfall | `GET /v1/revenue/waterfall` | How deferred revenue moves from period to period. |
+| Contracts | `GET /v1/revenue/contracts` | Revenue for each contract. |
+
+## Month-end close
+
+1. Generate schedules for the month's invoices.
+2. Review the summary and waterfall, and check them against your ledger.
+3. Close the accounting period so the month can't change. See [Accounting periods](/enterprise/accounting-periods).
+4. Export the audit log for the month with your close file.
+
+<Note>
+If an invoice is rerated after usage is backfilled, check the revenue summary again before you close the period. See [Backfill and rerate](/backfill-and-rerate).
+</Note>

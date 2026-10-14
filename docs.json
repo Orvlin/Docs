@@ -32,16 +32,28 @@
             "pages": [
               "introduction",
               "quickstart",
+              "guides/integrate-your-app",
               "ai-agents"
             ]
           },
           {
             "group": "Concepts",
             "pages": [
+              "how-orvlin-works",
               "core-concepts",
               "glossary",
               "pricing-models",
               "pricing-manifest"
+            ]
+          },
+          {
+            "group": "Essentials",
+            "pages": [
+              "api-reference/authentication",
+              "api-reference/api-keys",
+              "api-reference/errors",
+              "enterprise/environments",
+              "production-readiness"
             ]
           }
         ]
@@ -49,6 +61,64 @@
       {
         "tab": "Build",
         "groups": [
+          {
+            "group": "Events and metrics",
+            "pages": [
+              "guides/usage-metering",
+              "backfill-and-rerate"
+            ]
+          },
+          {
+            "group": "Customers and access",
+            "pages": [
+              "guides/entitlements",
+              "guides/customer-portal"
+            ]
+          },
+          {
+            "group": "Subscriptions and pricing",
+            "pages": [
+              "price-changes",
+              "guides/prepaid-credits"
+            ]
+          },
+          {
+            "group": "Usage alerting",
+            "pages": [
+              "alerts-and-budgets"
+            ]
+          },
+          {
+            "group": "Invoicing",
+            "pages": [
+              "guides/invoicing-and-collection"
+            ]
+          },
+          {
+            "group": "Collections",
+            "pages": [
+              "collections"
+            ]
+          },
+          {
+            "group": "Revenue reporting",
+            "pages": [
+              "revenue-reporting"
+            ]
+          },
+          {
+            "group": "Simulations",
+            "pages": [
+              "simulations"
+            ]
+          },
+          {
+            "group": "Integrations and data",
+            "pages": [
+              "guides/integrations",
+              "data-exports"
+            ]
+          },
           {
             "group": "Tutorials",
             "pages": [
@@ -58,19 +128,6 @@
               "tutorials/receive-webhooks-securely",
               "tutorials/launch-customer-portal",
               "tutorials/test-billing-with-test-clocks"
-            ]
-          },
-          {
-            "group": "Guides",
-            "pages": [
-              "guides/integrate-your-app",
-              "guides/usage-metering",
-              "guides/entitlements",
-              "guides/prepaid-credits",
-              "guides/invoicing-and-collection",
-              "guides/customer-portal",
-              "guides/integrations",
-              "guides/sso"
             ]
           }
         ]
@@ -86,8 +143,8 @@
               "enterprise/audit-logs",
               "enterprise/accounting-periods",
               "enterprise/data-privacy",
-              "enterprise/environments",
-              "enterprise/reliability"
+              "enterprise/reliability",
+              "guides/sso"
             ]
           }
         ]
@@ -110,12 +167,9 @@
         "tab": "API reference",
         "groups": [
           {
-            "group": "API reference",
+            "group": "Endpoints",
             "pages": [
               "api-reference/overview",
-              "api-reference/authentication",
-              "api-reference/api-keys",
-              "api-reference/errors",
               "api-reference/events",
               "api-reference/customers",
               "api-reference/metrics",

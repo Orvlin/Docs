@@ -1,0 +1,59 @@
+---
+title: 'Collections'
+description: 'Set up dunning steps and payment retries so failed invoices are chased consistently'
+---
+
+Collections is the process that follows an invoice that isn't paid: retries, reminders, and the final decision to mark it uncollectible. Orvlin runs it automatically once you set the rules.
+
+## Payment retries
+
+When a charge fails, Orvlin retries it on a schedule. Read and change the schedule:
+
+| Action | Endpoint |
+|---|---|
+| Read the retry schedule | `GET /v1/payment-retry/settings` |
+| Change the retry schedule | `PUT /v1/payment-retry/settings` |
+| Summary of invoices being retried | `GET /v1/payment-retry/summary` |
+| Attempts for one invoice | `GET /v1/invoices/:id/payment-attempts` |
+
+## Dunning policies
+
+A dunning policy is a set of steps: reminders sent to the customer, and actions taken if the invoice stays unpaid. Create a policy with a name and at least one step.
+
+| Action | Endpoint |
+|---|---|
+| List policies | `GET /v1/dunning/policies` |
+| Create a policy | `POST /v1/dunning/policies` |
+| Delete a policy | `DELETE /v1/dunning/policies/:id` |
+| Dunning processes in progress | `GET /v1/dunning/processes` |
+| Collection metrics | `GET /v1/dunning/metrics` |
+
+## What your customers and team see
+
+- Customers receive reminders according to the policy you set.
+- Your application gets webhooks for each state change:
+
+| Event | Meaning |
+|---|---|
+| `invoice.payment_failed` | A charge failed. |
+| `invoice.payment_action_required` | The customer must act, such as confirming their card. |
+| `invoice.payment_recovered` | A retry or payment succeeded. |
+| `invoice.marked_uncollectible` | Collection has ended without payment. |
+
+See [Webhooks](/api-reference/webhooks) for the signature and delivery rules.
+
+## Recommended setup
+
+1. Set a retry schedule that spreads attempts over at least a week, so one bad day doesn't end a relationship.
+2. Add a dunning policy with a reminder before the first retry, and a final notice before the invoice is marked uncollectible.
+3. Route `invoice.marked_uncollectible` to your team, so someone decides on the account.
+4. Review the collection metrics each month.
+
+<Warning>
+Marking an invoice uncollectible is a significant step. Confirm the account status with the customer before it happens.
+</Warning>
+
+## Related
+
+- [Invoicing and collection](/guides/invoicing-and-collection)
+- [Customer portal](/guides/customer-portal), where customers can pay open invoices

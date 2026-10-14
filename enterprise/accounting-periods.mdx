@@ -1,42 +1,65 @@
 ---
 title: 'Accounting periods'
-description: 'Mark closed months in your close process, and see how period status is recorded'
+description: "Close a month so its invoices and usage can't change, and reopen it only with an admin's action"
 ---
 
-When your finance team closes a month, record that close on the accounting period. The period status is the sign-off point for your close process.
+When your finance team closes a month, close its accounting period. A closed period is frozen: Orvlin refuses any change that would alter what was billed in it, until an admin reopens the period.
+
+## What a closed period blocks
+
+| Action | Blocked in a closed period | Why |
+|---|---|---|
+| Usage events dated in the period (`POST /v1/events`, `POST /v1/events/backfill`) | Yes. The event is rejected with a reason. | Late usage would change the period's invoices. |
+| Voiding an invoice (`POST /v1/invoices/:id/void`) | Yes, `409` | Changes the amount owed. |
+| Issuing a credit note (`POST /v1/invoices/:id/credit-note`) | Yes, `409` | Changes the amount owed. |
+| Approving a draft invoice (`POST /v1/invoices/:id/approve`) | Yes, `409` | Issues an invoice for the period. |
+| Re-rating an invoice (`POST /v1/invoices/:id/rerate`, and `POST /v1/rerate` with `apply: true`) | Yes. Bulk re-rating reports the invoice as blocked and carries on with the rest. | Changes the invoice amounts. |
+
+Paying an invoice from a closed period is **not** blocked. Collecting money already owed doesn't change what was billed.
+
+A blocked request returns `409` with this body:
+
+```json
+{
+  "error": "Accounting period 2026-09 is closed. Reopen it to make this change.",
+  "code": "period_closed",
+  "period": "2026-09"
+}
+```
 
 ## Close a period
+
+Only workspace admins and owners can close a period.
 
 ```bash
 curl -s -X POST "$ORVLIN_API/v1/accounting/periods/9/2026/lock" \
   -H "Authorization: Bearer $ADMIN_SESSION_TOKEN"
 ```
 
-The path takes the month as `:month` (1 to 12) and the year as `:year`. The example closes September 2026. The response is the updated period, with `status: "closed"` and `closed_at`.
+The path takes the month (`1` to `12`) and the year. Closing a period that has never been opened creates it, already closed. The response is the period, with `status: "closed"` and `closed_at`.
 
 ## Reopen a period
 
-Reopen a period only for corrections, and record the reason in your own change log.
+Only workspace admins and owners can reopen a period. Reopen only to make a correction, and record the reason in your own change log.
 
 ```bash
 curl -s -X POST "$ORVLIN_API/v1/accounting/periods/9/2026/unlock" \
   -H "Authorization: Bearer $ADMIN_SESSION_TOKEN"
 ```
 
-The response shows `status: "open"`.
+The response shows `status: "open"`. Reopening a period that doesn't exist returns `404`.
 
-## What the status means today
+## Audit trail
 
-- The period's status is recorded as `closed` or `open`. Your reporting and close checklists should read it before finalising figures.
-- The status does not yet stop changes to a closed period through the API. Check the status before you make corrections to a period.
-
-<Warning>
-Until enforcement is in place, the status is a record of your close, not a lock. Treat changes to closed periods as exceptions, and log them.
-</Warning>
+Every close and reopen is recorded in the [audit log](/enterprise/audit-logs) as `accounting_period.close` or `accounting_period.reopen`, with the period and the person who made the change.
 
 ## Recommended close process
 
-1. Confirm all usage for the month has been ingested. Late events are the most common cause of surprises.
-2. Review the revenue summary: `GET /v1/revenue/summary`.
+1. Confirm all usage for the month has been ingested. Events that arrive after the close are rejected, so chase late usage first.
+2. Review the revenue summary with `GET /v1/revenue/summary`.
 3. Close the period.
 4. Export the audit log for the period, and store it with your close file.
+
+<Tip>
+Test the close in your sandbox workspace before the first real close. Try a void on a closed period to confirm the `409` appears.
+</Tip>

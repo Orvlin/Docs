@@ -1,0 +1,50 @@
+---
+title: 'Simulations'
+description: 'Estimate what a plan would cost for given usage, before you launch or change pricing'
+---
+
+Simulations answer "what would this cost?" before anything reaches a customer. Use them to check a new plan, compare plans, or test a price change against realistic usage.
+
+## Estimate a cost
+
+Send a plan and a usage profile, and Orvlin returns the cost computed with the plan's prices:
+
+```bash
+curl -s -X POST "$ORVLIN_API/v1/simulator/compute" \
+  -H "Authorization: Bearer $ORVLIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "planId": "01JX_NEW_PLAN",
+    "usage": { "api_calls_total": 150000 },
+    "period": "monthly"
+  }'
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `planId` | Yes | The plan to price. Must exist in your workspace. |
+| `usage` | Yes | Quantity per metric, keyed by metric name. |
+| `period` | No | `monthly` or `annual`. |
+
+An unknown plan returns `404`.
+
+## Simulate from the command line
+
+The CLI runs simulations against your pricing manifest, for a customer or subscription over a period:
+
+```bash
+orvlin simulate --manifest pricing.yaml --customer cust_acme \
+  --period-start 2026-10-01 --period-end 2026-10-31 --output table
+```
+
+See the [CLI reference](/sdks/cli#orvlin-simulate) for every option, including price overrides for "what if" comparisons.
+
+## Typical uses
+
+- **New product:** price a sample of expected customers before launch.
+- **Evolving pricing:** compare the current plan with a proposed one at your real usage levels.
+- **Customer conversations:** show a customer what the new plan would cost them.
+
+<Tip>
+Use simulation before you [schedule a price change](/price-changes). Compare the simulated totals with a preview of the migration, and make sure they agree.
+</Tip>

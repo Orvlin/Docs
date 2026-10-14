@@ -1,53 +1,67 @@
 ---
 title: 'Introduction'
-description: 'What Orvlin is, what it does, and where to start'
+description: 'Orvlin handles usage-based, seat-based, prepaid, and hybrid billing for SaaS and AI products'
 ---
 
-Orvlin is a hosted billing platform for SaaS and AI products. It meters the usage your product generates, turns it into prices and plans, checks what each customer is entitled to, and produces the invoices and payments that follow.
+Orvlin handles usage-based, seat-based, prepaid, and hybrid billing for SaaS and AI products. Your application sends usage events, and Orvlin turns them into prices, entitlements, invoices, and payments.
 
-You send Orvlin events from your application. Orvlin aggregates them into metrics, applies your prices and plans, and handles subscriptions, credits, invoicing, and collection. Your application asks Orvlin whether a customer can use a feature before it does the work.
+<Tip>
+New here? Start with the [Quickstart](/quickstart) for a working setup in a few minutes, or the [Integration guide](/guides/integrate-your-app) for a step-by-step path into your app. A sandbox workspace is included, so you can test without moving real money.
+</Tip>
 
-## What you can build with it
+## Any pricing model
 
 <CardGroup cols={2}>
-  <Card title="Usage-based billing" icon="gauge" href="/guides/usage-metering">
-    Meter API calls, tokens, seats, or any custom event, and bill for consumption.
+  <Card title="Usage-based pricing" icon="gauge" href="/pricing-models">
+    Bill per call, token, or event with unit, tiered, bulk, or package pricing.
   </Card>
-  <Card title="Entitlements" icon="shield-check" href="/guides/entitlements">
-    Gate features and enforce limits in your request path with a local cache.
+  <Card title="Seat-based and hybrid" icon="users" href="/api-reference/licenses">
+    Charge per seat with license prices, and combine seats with usage.
   </Card>
   <Card title="Prepaid credits" icon="coins" href="/guides/prepaid-credits">
-    Sell credit packs, grant credits, and top up automatically when balances run low.
+    Sell credit packs, grant credits, and top balances up automatically.
   </Card>
-  <Card title="Invoicing and collection" icon="file-invoice-dollar" href="/guides/invoicing-and-collection">
-    Issue invoices, collect payment, retry failed charges, and void or credit as needed.
+  <Card title="Enterprise controls" icon="shield-halved" href="/enterprise/security-model">
+    SSO, approvals for money-moving actions, audit logs, and closed accounting periods.
   </Card>
 </CardGroup>
 
-## How it fits together
+## Learning paths
 
-```mermaid
-graph LR
-    App[Your application] -->|POST /v1/events| Orvlin[Orvlin]
-    App -->|GET entitlements| Orvlin
-    Orvlin -->|Subscriptions, invoices, payments| Stripe[Payment provider]
-    Orvlin -->|webhooks| App
-```
+<CardGroup cols={2}>
+  <Card title="Build your first integration" icon="code" href="/guides/integrate-your-app">
+    Connect tracking, entitlement checks, webhooks, and the customer portal to your app, one step at a time.
+  </Card>
+  <Card title="Understand the model" icon="lightbulb" href="/core-concepts">
+    See how events, metrics, prices, plans, subscriptions, and invoices fit together.
+  </Card>
+</CardGroup>
 
-## Where to go next
+## Key features
+
+- **Usage metering:** send events with idempotency keys, so retries never count twice. Metrics count, sum, take the max, count distinct values, or run custom SQL. See [Usage metering](/guides/usage-metering).
+- **Entitlements:** check what a customer can use before the work runs. Answers are cached locally, so checks stay fast. See [Entitlements](/guides/entitlements).
+- **Prepaid credits:** grant credits, sell packs, and top up automatically when a balance runs low. See [Prepaid credits](/guides/prepaid-credits).
+- **Invoicing and collection:** issue, approve, void, and credit invoices. Failed charges are retried on a schedule. See [Invoicing and collection](/guides/invoicing-and-collection).
+- **Customer portal:** let customers see usage and invoices, and change plans, inside your own app. See [Customer portal](/guides/customer-portal).
+- **Signed webhooks:** get notified about invoices, subscriptions, and approvals, with signatures you can verify. See [Webhooks](/api-reference/webhooks).
+- **Integrations:** sync with tax engines, CRMs, accounting tools, data warehouses, and cloud marketplaces. See [Integrations](/guides/integrations).
+- **Sandbox and test clocks:** test renewals, invoices, and payment retries in minutes. See [Test billing](/tutorials/test-billing-with-test-clocks).
+
+## Resources
 
 <CardGroup cols={3}>
-  <Card title="Quickstart" icon="rocket" href="/quickstart">
-    Create a customer, define a price, and send your first event in a few minutes.
-  </Card>
   <Card title="Core concepts" icon="layer-group" href="/core-concepts">
-    Learn the objects: events, metrics, prices, plans, subscriptions, and invoices.
+    Events, metrics, prices, plans, subscriptions, and invoices.
   </Card>
   <Card title="API reference" icon="code" href="/api-reference/overview">
     Every endpoint, with request and response fields.
   </Card>
+  <Card title="SDKs and tools" icon="terminal" href="/sdks/node">
+    Node.js, Python, React, and the CLI.
+  </Card>
 </CardGroup>
 
-<Note>
-Start in a sandbox workspace. Sandbox payments never reach a real payment processor, so you can test invoices and collection safely.
-</Note>
+<Card title="For AI assistants" icon="robot" href="/ai-agents">
+  Give these docs to ChatGPT, Claude, or Cursor, with the facts they most often get wrong.
+</Card>

@@ -23,89 +23,114 @@
     "url": "https://app.orvlin.com"
   },
   "navigation": {
-    "groups": [
+    "tabs": [
       {
-        "group": "Get started",
-        "pages": [
-          "introduction",
-          "quickstart",
-          "ai-agents"
+        "tab": "Getting started",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "ai-agents"
+            ]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "core-concepts",
+              "glossary",
+              "pricing-models",
+              "pricing-manifest"
+            ]
+          }
         ]
       },
       {
-        "group": "Concepts",
-        "pages": [
-          "core-concepts",
-          "glossary",
-          "pricing-models",
-          "pricing-manifest"
+        "tab": "Build",
+        "groups": [
+          {
+            "group": "Tutorials",
+            "pages": [
+              "tutorials/meter-your-first-api",
+              "tutorials/gate-features-with-entitlements",
+              "tutorials/sell-prepaid-credits",
+              "tutorials/receive-webhooks-securely",
+              "tutorials/launch-customer-portal",
+              "tutorials/test-billing-with-test-clocks"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/integrate-your-app",
+              "guides/usage-metering",
+              "guides/entitlements",
+              "guides/prepaid-credits",
+              "guides/invoicing-and-collection",
+              "guides/customer-portal",
+              "guides/integrations",
+              "guides/sso"
+            ]
+          }
         ]
       },
       {
-        "group": "Tutorials",
-        "pages": [
-          "tutorials/meter-your-first-api",
-          "tutorials/gate-features-with-entitlements",
-          "tutorials/sell-prepaid-credits",
-          "tutorials/receive-webhooks-securely",
-          "tutorials/launch-customer-portal",
-          "tutorials/test-billing-with-test-clocks"
+        "tab": "Enterprise",
+        "groups": [
+          {
+            "group": "Enterprise",
+            "pages": [
+              "enterprise/security-model",
+              "enterprise/approvals",
+              "enterprise/audit-logs",
+              "enterprise/accounting-periods",
+              "enterprise/data-privacy",
+              "enterprise/environments",
+              "enterprise/reliability"
+            ]
+          }
         ]
       },
       {
-        "group": "Guides",
-        "pages": [
-          "guides/integrate-your-app",
-          "guides/usage-metering",
-          "guides/entitlements",
-          "guides/prepaid-credits",
-          "guides/invoicing-and-collection",
-          "guides/customer-portal",
-          "guides/integrations",
-          "guides/sso"
+        "tab": "SDKs and tools",
+        "groups": [
+          {
+            "group": "SDKs and tools",
+            "pages": [
+              "sdks/node",
+              "sdks/python",
+              "sdks/react",
+              "sdks/cli"
+            ]
+          }
         ]
       },
       {
-        "group": "Enterprise",
-        "pages": [
-          "enterprise/security-model",
-          "enterprise/approvals",
-          "enterprise/audit-logs",
-          "enterprise/accounting-periods",
-          "enterprise/data-privacy",
-          "enterprise/environments",
-          "enterprise/reliability"
-        ]
-      },
-      {
-        "group": "SDKs and tools",
-        "pages": [
-          "sdks/node",
-          "sdks/python",
-          "sdks/react",
-          "sdks/cli"
-        ]
-      },
-      {
-        "group": "API reference",
-        "pages": [
-          "api-reference/overview",
-          "api-reference/authentication",
-          "api-reference/api-keys",
-          "api-reference/errors",
-          "api-reference/events",
-          "api-reference/customers",
-          "api-reference/metrics",
-          "api-reference/prices",
-          "api-reference/plans",
-          "api-reference/subscriptions",
-          "api-reference/invoices",
-          "api-reference/credits",
-          "api-reference/licenses",
-          "api-reference/webhooks",
-          "api-reference/portal",
-          "api-reference/approvals",
-          "api-reference/audit-logs"
+        "tab": "API reference",
+        "groups": [
+          {
+            "group": "API reference",
+            "pages": [
+              "api-reference/overview",
+              "api-reference/authentication",
+              "api-reference/api-keys",
+              "api-reference/errors",
+              "api-reference/events",
+              "api-reference/customers",
+              "api-reference/metrics",
+              "api-reference/prices",
+              "api-reference/plans",
+              "api-reference/subscriptions",
+              "api-reference/invoices",
+              "api-reference/credits",
+              "api-reference/licenses",
+              "api-reference/webhooks",
+              "api-reference/portal",
+              "api-reference/approvals",
+              "api-reference/audit-logs"
+            ]
+          }
         ]
       }
     ]
